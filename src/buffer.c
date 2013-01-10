@@ -121,7 +121,7 @@ AddViaToBuffer (PinType *Via)
 {
   return (CreateNewVia (Dest, Via->X, Via->Y, Via->Thickness, Via->Clearance,
 			Via->Mask, Via->DrillingHole, Via->Name,
-			MaskFlags (Via->Flags, FOUNDFLAG | ExtraFlag)));
+			MaskFlags (Via->Flags, NOCOPY_FLAGS | ExtraFlag)));
 }
 
 /* ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ AddRatToBuffer (RatType *Rat)
   return (CreateNewRat (Dest, Rat->Point1.X, Rat->Point1.Y,
 			Rat->Point2.X, Rat->Point2.Y, Rat->group1,
 			Rat->group2, Rat->Thickness,
-			MaskFlags (Rat->Flags, FOUNDFLAG | ExtraFlag)));
+			MaskFlags (Rat->Flags, NOCOPY_FLAGS | ExtraFlag)));
 }
 
 /* ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ AddLineToBuffer (LayerType *Layer, LineType *Line)
 			       Line->Point2.X, Line->Point2.Y,
 			       Line->Thickness, Line->Clearance,
 			       MaskFlags (Line->Flags,
-					  FOUNDFLAG | ExtraFlag));
+					  NOCOPY_FLAGS | ExtraFlag));
   if (line && Line->Number)
     line->Number = strdup (Line->Number);
   return (line);
@@ -167,7 +167,7 @@ AddArcToBuffer (LayerType *Layer, ArcType *Arc)
 			       Arc->Width, Arc->Height, Arc->StartAngle, Arc->Delta,
 			       Arc->Thickness, Arc->Clearance,
 			       MaskFlags (Arc->Flags,
-					  FOUNDFLAG | ExtraFlag)));
+					  NOCOPY_FLAGS | ExtraFlag)));
 }
 
 /* ---------------------------------------------------------------------------
@@ -203,7 +203,7 @@ AddPolygonToBuffer (LayerType *Layer, PolygonType *Polygon)
     layer->polygon_tree = r_create_tree (NULL, 0, 0);
   r_insert_entry (layer->polygon_tree, (BoxType *)polygon, 0);
 
-  CLEAR_FLAG (FOUNDFLAG | ExtraFlag, polygon);
+  CLEAR_FLAG (NOCOPY_FLAGS | ExtraFlag, polygon);
   return (polygon);
 }
 
@@ -213,30 +213,7 @@ AddPolygonToBuffer (LayerType *Layer, PolygonType *Polygon)
 static void *
 AddElementToBuffer (ElementType *Element)
 {
-  ElementType *element;
-
-  element = GetElementMemory (Dest);
-  CopyElementLowLevel (Dest, element, Element, false, 0, 0);
-  CLEAR_FLAG (ExtraFlag, element);
-  if (ExtraFlag)
-    {
-      ELEMENTTEXT_LOOP (element);
-      {
-	CLEAR_FLAG (ExtraFlag, text);
-      }
-      END_LOOP;
-      PIN_LOOP (element);
-      {
-	CLEAR_FLAG (FOUNDFLAG | ExtraFlag, pin);
-      }
-      END_LOOP;
-      PAD_LOOP (element);
-      {
-	CLEAR_FLAG (FOUNDFLAG | ExtraFlag, pad);
-      }
-      END_LOOP;
-    }
-  return (element);
+  return CopyElementLowLevel (Dest, Element, false, 0, 0, NOCOPY_FLAGS | ExtraFlag);
 }
 
 /* ---------------------------------------------------------------------------
@@ -253,7 +230,7 @@ MoveViaToBuffer (PinType *via)
   Dest->Via = g_list_append (Dest->Via, via);
   Dest->ViaN ++;
 
-  CLEAR_FLAG (WARNFLAG | FOUNDFLAG, via);
+  CLEAR_FLAG (WARNFLAG | NOCOPY_FLAGS, via);
 
   if (!Dest->via_tree)
     Dest->via_tree = r_create_tree (NULL, 0, 0);
@@ -275,7 +252,7 @@ MoveRatToBuffer (RatType *rat)
   Dest->Rat = g_list_append (Dest->Rat, rat);
   Dest->RatN ++;
 
-  CLEAR_FLAG (FOUNDFLAG, rat);
+  CLEAR_FLAG (NOCOPY_FLAGS, rat);
 
   if (!Dest->rat_tree)
     Dest->rat_tree = r_create_tree (NULL, 0, 0);
@@ -299,7 +276,7 @@ MoveLineToBuffer (LayerType *layer, LineType *line)
   lay->Line = g_list_append (lay->Line, line);
   lay->LineN ++;
 
-  CLEAR_FLAG (FOUNDFLAG, line);
+  CLEAR_FLAG (NOCOPY_FLAGS, line);
 
   if (!lay->line_tree)
     lay->line_tree = r_create_tree (NULL, 0, 0);
@@ -324,7 +301,7 @@ MoveArcToBuffer (LayerType *layer, ArcType *arc)
   lay->Arc = g_list_append (lay->Arc, arc);
   lay->ArcN ++;
 
-  CLEAR_FLAG (FOUNDFLAG, arc);
+  CLEAR_FLAG (NOCOPY_FLAGS, arc);
 
   if (!lay->arc_tree)
     lay->arc_tree = r_create_tree (NULL, 0, 0);
@@ -371,7 +348,7 @@ MovePolygonToBuffer (LayerType *layer, PolygonType *polygon)
   lay->Polygon = g_list_append (lay->Polygon, polygon);
   lay->PolygonN ++;
 
-  CLEAR_FLAG (FOUNDFLAG, polygon);
+  CLEAR_FLAG (NOCOPY_FLAGS, polygon);
 
   if (!lay->polygon_tree)
     lay->polygon_tree = r_create_tree (NULL, 0, 0);
@@ -399,13 +376,13 @@ MoveElementToBuffer (ElementType *element)
   PIN_LOOP (element);
   {
     RestoreToPolygon(Source, PIN_TYPE, element, pin);
-    CLEAR_FLAG (WARNFLAG | FOUNDFLAG, pin);
+    CLEAR_FLAG (WARNFLAG | NOCOPY_FLAGS, pin);
   }
   END_LOOP;
   PAD_LOOP (element);
   {
     RestoreToPolygon(Source, PAD_TYPE, element, pad);
-    CLEAR_FLAG (WARNFLAG | FOUNDFLAG, pad);
+    CLEAR_FLAG (WARNFLAG | NOCOPY_FLAGS, pad);
   }
   END_LOOP;
   SetElementBoundingBox (Dest, element, &PCB->Font);
@@ -990,7 +967,7 @@ ConvertBufferToElement (BufferType *Buffer)
   if (Buffer->Data->pcb == 0)
     Buffer->Data->pcb = PCB;
 
-  Element = CreateNewElement (PCB->Data, NULL, &PCB->Font, NoFlags (),
+  Element = CreateNewElement (PCB->Data, &PCB->Font, NoFlags (),
 			      NULL, NULL, NULL, PASTEBUFFER->X,
 			      PASTEBUFFER->Y, 0, 100,
 			      MakeFlags (SWAP_IDENT ? ONSOLDERFLAG : NOFLAG),
@@ -1006,7 +983,7 @@ ConvertBufferToElement (BufferType *Buffer)
       CreateNewPin (Element, via->X, via->Y, via->Thickness,
 		    via->Clearance, via->Mask, via->DrillingHole,
 		    NULL, via->Name, MaskFlags (via->Flags,
-						VIAFLAG | FOUNDFLAG |
+						VIAFLAG | NOCOPY_FLAGS |
 						SELECTEDFLAG | WARNFLAG));
     else
       {
@@ -1014,7 +991,7 @@ ConvertBufferToElement (BufferType *Buffer)
 	CreateNewPin (Element, via->X, via->Y, via->Thickness,
 		      via->Clearance, via->Mask, via->DrillingHole,
 		      NULL, num, MaskFlags (via->Flags,
-					    VIAFLAG | FOUNDFLAG | SELECTEDFLAG
+					    VIAFLAG | NOCOPY_FLAGS | SELECTEDFLAG
 					    | WARNFLAG));
       }
     hasParts = true;

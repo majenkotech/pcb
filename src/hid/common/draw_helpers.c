@@ -1,6 +1,123 @@
 #include "global.h"
 #include "hid.h"
+#include "hid_draw.h"
+#include "data.h" /* For global "PCB" variable */
+#include "rotate.h" /* For RotateLineLowLevel() */
 #include "polygon.h"
+#include "draw_helpers.h"
+
+
+static void
+common_draw_pcb_line (hidGC gc, LineType *line)
+{
+  gui->graphics->set_line_cap (gc, Trace_Cap);
+  if (TEST_FLAG (THINDRAWFLAG, PCB))
+    gui->graphics->set_line_width (gc, 0);
+  else
+    gui->graphics->set_line_width (gc, line->Thickness);
+
+  gui->graphics->draw_line (gc,
+                            line->Point1.X, line->Point1.Y,
+                            line->Point2.X, line->Point2.Y);
+}
+
+static void
+common_draw_pcb_arc (hidGC gc, ArcType *arc)
+{
+  if (!arc->Thickness)
+    return;
+
+  if (TEST_FLAG (THINDRAWFLAG, PCB))
+    gui->graphics->set_line_width (gc, 0);
+  else
+    gui->graphics->set_line_width (gc, arc->Thickness);
+  gui->graphics->set_line_cap (gc, Trace_Cap);
+
+  gui->graphics->draw_arc (gc, arc->X, arc->Y, arc->Width, arc->Height, arc->StartAngle, arc->Delta);
+}
+
+/* ---------------------------------------------------------------------------
+ * drawing routine for text objects
+ */
+static void
+common_draw_pcb_text (hidGC gc, TextType *Text, Coord min_line_width)
+{
+  Coord x = 0;
+  unsigned char *string = (unsigned char *) Text->TextString;
+  Cardinal n;
+  FontType *font = &PCB->Font;
+
+  while (string && *string)
+    {
+      /* draw lines if symbol is valid and data is present */
+      if (*string <= MAX_FONTPOSITION && font->Symbol[*string].Valid)
+        {
+          LineType *line = font->Symbol[*string].Line;
+          LineType newline;
+
+          for (n = font->Symbol[*string].LineN; n; n--, line++)
+            {
+              /* create one line, scale, move, rotate and swap it */
+              newline = *line;
+              newline.Point1.X = SCALE_TEXT (newline.Point1.X + x, Text->Scale);
+              newline.Point1.Y = SCALE_TEXT (newline.Point1.Y, Text->Scale);
+              newline.Point2.X = SCALE_TEXT (newline.Point2.X + x, Text->Scale);
+              newline.Point2.Y = SCALE_TEXT (newline.Point2.Y, Text->Scale);
+              newline.Thickness = SCALE_TEXT (newline.Thickness, Text->Scale / 2);
+              if (newline.Thickness < min_line_width)
+                newline.Thickness = min_line_width;
+
+              RotateLineLowLevel (&newline, 0, 0, Text->Direction);
+
+              /* the labels of SMD objects on the bottom
+               * side haven't been swapped yet, only their offset
+               */
+              if (TEST_FLAG (ONSOLDERFLAG, Text))
+                {
+                  newline.Point1.X = SWAP_SIGN_X (newline.Point1.X);
+                  newline.Point1.Y = SWAP_SIGN_Y (newline.Point1.Y);
+                  newline.Point2.X = SWAP_SIGN_X (newline.Point2.X);
+                  newline.Point2.Y = SWAP_SIGN_Y (newline.Point2.Y);
+                }
+              /* add offset and draw line */
+              newline.Point1.X += Text->X;
+              newline.Point1.Y += Text->Y;
+              newline.Point2.X += Text->X;
+              newline.Point2.Y += Text->Y;
+              gui->graphics->draw_pcb_line (gc, &newline);
+            }
+
+          /* move on to next cursor position */
+          x += (font->Symbol[*string].Width + font->Symbol[*string].Delta);
+        }
+      else
+        {
+          /* the default symbol is a filled box */
+          BoxType defaultsymbol = PCB->Font.DefaultSymbol;
+          Coord size = (defaultsymbol.X2 - defaultsymbol.X1) * 6 / 5;
+
+          defaultsymbol.X1 = SCALE_TEXT (defaultsymbol.X1 + x, Text->Scale);
+          defaultsymbol.Y1 = SCALE_TEXT (defaultsymbol.Y1, Text->Scale);
+          defaultsymbol.X2 = SCALE_TEXT (defaultsymbol.X2 + x, Text->Scale);
+          defaultsymbol.Y2 = SCALE_TEXT (defaultsymbol.Y2, Text->Scale);
+
+          RotateBoxLowLevel (&defaultsymbol, 0, 0, Text->Direction);
+
+          /* add offset and draw box */
+          defaultsymbol.X1 += Text->X;
+          defaultsymbol.Y1 += Text->Y;
+          defaultsymbol.X2 += Text->X;
+          defaultsymbol.Y2 += Text->Y;
+          gui->graphics->fill_rect (gc,
+                                    defaultsymbol.X1, defaultsymbol.Y1,
+                                    defaultsymbol.X2, defaultsymbol.Y2);
+
+          /* move on to next cursor position */
+          x += size;
+        }
+      string++;
+    }
+}
 
 static void
 fill_contour (hidGC gc, PLINE *pl)
@@ -18,7 +135,7 @@ fill_contour (hidGC gc, PLINE *pl)
       y[i++] = v->point[1];
     }
 
-  gui->fill_polygon (gc, n, x, y);
+  gui->graphics->fill_polygon (gc, n, x, y);
 
   free (x);
   free (y);
@@ -31,13 +148,13 @@ thindraw_contour (hidGC gc, PLINE *pl)
   Coord last_x, last_y;
   Coord this_x, this_y;
 
-  gui->set_line_width (gc, 0);
-  gui->set_line_cap (gc, Round_Cap);
+  gui->graphics->set_line_width (gc, 0);
+  gui->graphics->set_line_cap (gc, Round_Cap);
 
   /* If the contour is round, use an arc drawing routine. */
   if (pl->is_round)
     {
-      gui->draw_arc (gc, pl->cx, pl->cy, pl->radius, pl->radius, 0, 360);
+      gui->graphics->draw_arc (gc, pl->cx, pl->cy, pl->radius, pl->radius, 0, 360);
       return;
     }
 
@@ -54,8 +171,8 @@ thindraw_contour (hidGC gc, PLINE *pl)
       this_x = v->point[0];
       this_y = v->point[1];
 
-      gui->draw_line (gc, last_x, last_y, this_x, this_y);
-      // gui->fill_circle (gc, this_x, this_y, 30);
+      gui->graphics->draw_line (gc, last_x, last_y, this_x, this_y);
+      // gui->graphics->fill_circle (gc, this_x, this_y, 30);
 
       last_x = this_x;
       last_y = this_y;
@@ -140,8 +257,34 @@ should_compute_no_holes (PolygonType *poly, const BoxType *clip_box)
 #undef BOUNDS_INSIDE_CLIP_THRESHOLD
 
 void
+common_gui_draw_pcb_polygon (hidGC gc, PolygonType *polygon, const BoxType *clip_box)
+{
+  if (polygon->Clipped == NULL)
+    return;
+
+  if (TEST_FLAG (THINDRAWFLAG, PCB) || TEST_FLAG (THINDRAWPOLYFLAG, PCB))
+    gui->graphics->thindraw_pcb_polygon (gc, polygon, clip_box);
+  else
+    gui->graphics->fill_pcb_polygon (gc, polygon, clip_box);
+
+  /* If checking planes, thin-draw any pieces which have been clipped away */
+  if (TEST_FLAG (CHECKPLANESFLAG, PCB) && !TEST_FLAG (FULLPOLYFLAG, polygon))
+    {
+      PolygonType poly = *polygon;
+
+      for (poly.Clipped = polygon->Clipped->f;
+           poly.Clipped != polygon->Clipped;
+           poly.Clipped = poly.Clipped->f)
+        gui->graphics->thindraw_pcb_polygon (gc, &poly, clip_box);
+    }
+}
+
+void
 common_fill_pcb_polygon (hidGC gc, PolygonType *poly, const BoxType *clip_box)
 {
+  if (poly->Clipped == NULL)
+    return;
+
   if (!poly->NoHolesValid)
     {
       /* If enough of the polygon is on-screen, compute the entire
@@ -191,8 +334,25 @@ void
 common_thindraw_pcb_polygon (hidGC gc, PolygonType *poly,
                              const BoxType *clip_box)
 {
+  if (poly->Clipped == NULL)
+    return;
+
   thindraw_contour (gc, poly->Clipped->contours);
   PolygonHoles (poly, clip_box, thindraw_hole_cb, gc);
+
+  /* Draw other parts of the polygon if fullpoly flag is set */
+  if (TEST_FLAG (FULLPOLYFLAG, poly))
+    {
+      PolygonType p = *poly;
+
+      for (p.Clipped = poly->Clipped->f;
+           p.Clipped != poly->Clipped;
+           p.Clipped = p.Clipped->f)
+        {
+          thindraw_contour (gc, p.Clipped->contours);
+          PolygonHoles (&p, clip_box, thindraw_hole_cb, gc);
+        }
+    }
 }
 
 void
@@ -214,8 +374,8 @@ common_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
       x1 = x2; x2 = temp_x;
       y1 = y2; y2 = temp_y;
     }
-  gui->set_line_cap (gc, Round_Cap);
-  gui->set_line_width (gc, 0);
+  gui->graphics->set_line_cap (gc, Round_Cap);
+  gui->graphics->set_line_width (gc, 0);
   if (TEST_FLAG (SQUAREFLAG, pad))
     {
       /* slanted square pad */
@@ -231,14 +391,14 @@ common_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
       tx = t * cos (theta + M_PI / 4) * sqrt (2.0);
       ty = t * sin (theta + M_PI / 4) * sqrt (2.0);
 
-      gui->draw_line (gc, x1 - tx, y1 - ty, x2 + ty, y2 - tx);
-      gui->draw_line (gc, x2 + ty, y2 - tx, x2 + tx, y2 + ty);
-      gui->draw_line (gc, x2 + tx, y2 + ty, x1 - ty, y1 + tx);
-      gui->draw_line (gc, x1 - ty, y1 + tx, x1 - tx, y1 - ty);
+      gui->graphics->draw_line (gc, x1 - tx, y1 - ty, x2 + ty, y2 - tx);
+      gui->graphics->draw_line (gc, x2 + ty, y2 - tx, x2 + tx, y2 + ty);
+      gui->graphics->draw_line (gc, x2 + tx, y2 + ty, x1 - ty, y1 + tx);
+      gui->graphics->draw_line (gc, x1 - ty, y1 + tx, x1 - tx, y1 - ty);
     }
   else if (x1 == x2 && y1 == y2)
     {
-      gui->draw_arc (gc, x1, y1, t, t, 0, 360);
+      gui->graphics->draw_arc (gc, x1, y1, t, t, 0, 360);
     }
   else
     {
@@ -252,14 +412,14 @@ common_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
       ox = dy * h + 0.5 * SGN (dy);
       oy = -(dx * h + 0.5 * SGN (dx));
 
-      gui->draw_line (gc, x1 + ox, y1 + oy, x2 + ox, y2 + oy);
+      gui->graphics->draw_line (gc, x1 + ox, y1 + oy, x2 + ox, y2 + oy);
 
       if (abs (ox) >= pixel_slop || abs (oy) >= pixel_slop)
         {
           Angle angle = atan2 (dx, dy) * 57.295779;
-          gui->draw_line (gc, x1 - ox, y1 - oy, x2 - ox, y2 - oy);
-          gui->draw_arc (gc, x1, y1, t, t, angle - 180, 180);
-          gui->draw_arc (gc, x2, y2, t, t, angle, 180);
+          gui->graphics->draw_line (gc, x1 - ox, y1 - oy, x2 - ox, y2 - oy);
+          gui->graphics->draw_arc (gc, x1, y1, t, t, angle - 180, 180);
+          gui->graphics->draw_arc (gc, x2, y2, t, t, angle, 180);
         }
     }
 }
@@ -281,20 +441,20 @@ common_fill_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
           b = pad->Point1.Y - w / 2;
           r = l + w;
           t = b + w;
-          gui->fill_rect (gc, l, b, r, t);
+          gui->graphics->fill_rect (gc, l, b, r, t);
         }
       else
         {
-          gui->fill_circle (gc, pad->Point1.X, pad->Point1.Y, w / 2);
+          gui->graphics->fill_circle (gc, pad->Point1.X, pad->Point1.Y, w / 2);
         }
     }
   else
     {
-      gui->set_line_cap (gc, TEST_FLAG (SQUAREFLAG, pad) ?
+      gui->graphics->set_line_cap (gc, TEST_FLAG (SQUAREFLAG, pad) ?
                                Square_Cap : Round_Cap);
-      gui->set_line_width (gc, w);
+      gui->graphics->set_line_width (gc, w);
 
-      gui->draw_line (gc, pad->Point1.X, pad->Point1.Y,
+      gui->graphics->draw_line (gc, pad->Point1.X, pad->Point1.Y,
                           pad->Point2.X, pad->Point2.Y);
     }
 }
@@ -359,16 +519,16 @@ draw_octagon_poly (hidGC gc, Coord X, Coord Y,
   if (thin_draw)
     {
       int i;
-      gui->set_line_cap (gc, Round_Cap);
-      gui->set_line_width (gc, 0);
+      gui->graphics->set_line_cap (gc, Round_Cap);
+      gui->graphics->set_line_width (gc, 0);
       polygon_x[8] = X + scaled_x[0];
       polygon_y[8] = Y + scaled_y[0];
       for (i = 0; i < 8; i++)
-        gui->draw_line (gc, polygon_x[i    ], polygon_y[i    ],
+        gui->graphics->draw_line (gc, polygon_x[i    ], polygon_y[i    ],
                             polygon_x[i + 1], polygon_y[i + 1]);
     }
   else
-    gui->fill_polygon (gc, 8, polygon_x, polygon_y);
+    gui->graphics->fill_polygon (gc, 8, polygon_x, polygon_y);
 }
 
 void
@@ -380,13 +540,13 @@ common_fill_pcb_pv (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bool m
   if (TEST_FLAG (HOLEFLAG, pv))
     {
       if (mask)
-	gui->fill_circle (bg_gc, pv->X, pv->Y, r);
+	gui->graphics->fill_circle (bg_gc, pv->X, pv->Y, r);
       if (drawHole)
         {
-          gui->fill_circle (bg_gc, pv->X, pv->Y, r);
-          gui->set_line_cap (fg_gc, Round_Cap);
-          gui->set_line_width (fg_gc, 0);
-          gui->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
+          gui->graphics->fill_circle (bg_gc, pv->X, pv->Y, r);
+          gui->graphics->set_line_cap (fg_gc, Round_Cap);
+          gui->graphics->set_line_width (fg_gc, 0);
+          gui->graphics->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
         }
       return;
     }
@@ -398,16 +558,16 @@ common_fill_pcb_pv (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bool m
       Coord r = l + w;
       Coord t = b + w;
 
-      gui->fill_rect (fg_gc, l, b, r, t);
+      gui->graphics->fill_rect (fg_gc, l, b, r, t);
     }
   else if (TEST_FLAG (OCTAGONFLAG, pv))
     draw_octagon_poly (fg_gc, pv->X, pv->Y, w, false);
   else /* draw a round pin or via */
-    gui->fill_circle (fg_gc, pv->X, pv->Y, r);
+    gui->graphics->fill_circle (fg_gc, pv->X, pv->Y, r);
 
   /* and the drilling hole  (which is always round) */
   if (drawHole)
-    gui->fill_circle (bg_gc, pv->X, pv->Y, pv->DrillingHole / 2);
+    gui->graphics->fill_circle (bg_gc, pv->X, pv->Y, pv->DrillingHole / 2);
 }
 
 void
@@ -419,13 +579,13 @@ common_thindraw_pcb_pv (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bo
   if (TEST_FLAG (HOLEFLAG, pv))
     {
       if (mask)
-	gui->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
+	gui->graphics->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
       if (drawHole)
         {
 	  r = pv->DrillingHole / 2;
-          gui->set_line_cap (bg_gc, Round_Cap);
-          gui->set_line_width (bg_gc, 0);
-          gui->draw_arc (bg_gc, pv->X, pv->Y, r, r, 0, 360);
+          gui->graphics->set_line_cap (bg_gc, Round_Cap);
+          gui->graphics->set_line_width (bg_gc, 0);
+          gui->graphics->draw_arc (bg_gc, pv->X, pv->Y, r, r, 0, 360);
         }
       return;
     }
@@ -437,12 +597,12 @@ common_thindraw_pcb_pv (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bo
       Coord r = l + w;
       Coord t = b + w;
 
-      gui->set_line_cap (fg_gc, Round_Cap);
-      gui->set_line_width (fg_gc, 0);
-      gui->draw_line (fg_gc, r, t, r, b);
-      gui->draw_line (fg_gc, l, t, l, b);
-      gui->draw_line (fg_gc, r, t, l, t);
-      gui->draw_line (fg_gc, r, b, l, b);
+      gui->graphics->set_line_cap (fg_gc, Round_Cap);
+      gui->graphics->set_line_width (fg_gc, 0);
+      gui->graphics->draw_line (fg_gc, r, t, r, b);
+      gui->graphics->draw_line (fg_gc, l, t, l, b);
+      gui->graphics->draw_line (fg_gc, r, t, l, t);
+      gui->graphics->draw_line (fg_gc, r, b, l, b);
 
     }
   else if (TEST_FLAG (OCTAGONFLAG, pv))
@@ -451,28 +611,33 @@ common_thindraw_pcb_pv (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bo
     }
   else /* draw a round pin or via */
     {
-      gui->set_line_cap (fg_gc, Round_Cap);
-      gui->set_line_width (fg_gc, 0);
-      gui->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
+      gui->graphics->set_line_cap (fg_gc, Round_Cap);
+      gui->graphics->set_line_width (fg_gc, 0);
+      gui->graphics->draw_arc (fg_gc, pv->X, pv->Y, r, r, 0, 360);
     }
 
   /* and the drilling hole  (which is always round */
   if (drawHole)
     {
-      gui->set_line_cap (bg_gc, Round_Cap);
-      gui->set_line_width (bg_gc, 0);
-      gui->draw_arc (bg_gc, pv->X, pv->Y, pv->DrillingHole / 2,
+      gui->graphics->set_line_cap (bg_gc, Round_Cap);
+      gui->graphics->set_line_width (bg_gc, 0);
+      gui->graphics->draw_arc (bg_gc, pv->X, pv->Y, pv->DrillingHole / 2,
                      pv->DrillingHole / 2, 0, 360);
     }
 }
 
 void
-common_draw_helpers_init (HID *hid)
+common_draw_helpers_init (HID_DRAW *graphics)
 {
-  hid->fill_pcb_polygon     = common_fill_pcb_polygon;
-  hid->thindraw_pcb_polygon = common_thindraw_pcb_polygon;
-  hid->fill_pcb_pad         = common_fill_pcb_pad;
-  hid->thindraw_pcb_pad     = common_thindraw_pcb_pad;
-  hid->fill_pcb_pv          = common_fill_pcb_pv;
-  hid->thindraw_pcb_pv      = common_thindraw_pcb_pv;
+  graphics->draw_pcb_line        = common_draw_pcb_line;
+  graphics->draw_pcb_arc         = common_draw_pcb_arc;
+  graphics->draw_pcb_text        = common_draw_pcb_text;
+  graphics->draw_pcb_polygon     = common_fill_pcb_polygon; /* Default is the non-GUI case */
+
+  graphics->fill_pcb_polygon     = common_fill_pcb_polygon;
+  graphics->thindraw_pcb_polygon = common_thindraw_pcb_polygon;
+  graphics->fill_pcb_pad         = common_fill_pcb_pad;
+  graphics->thindraw_pcb_pad     = common_thindraw_pcb_pad;
+  graphics->fill_pcb_pv          = common_fill_pcb_pv;
+  graphics->thindraw_pcb_pv      = common_thindraw_pcb_pv;
 }

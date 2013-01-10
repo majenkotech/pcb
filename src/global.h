@@ -505,18 +505,22 @@ typedef struct PCBType
     *InvisibleObjectsColor,
     *InvisibleMarkColor,
     *ElementSelectedColor,
-    *RatSelectedColor, *ConnectedColor, *WarnColor, *MaskColor;
+    *RatSelectedColor, *ConnectedColor, *FoundColor, *WarnColor, *MaskColor;
   long CursorX,			/* cursor position as saved with layout */
     CursorY, Clipping;
   Coord Bloat,			/* drc sizes saved with layout */
     Shrink, minWid, minSlk, minDrill, minRing;
   Coord GridOffsetX,		/* as saved with layout */
-    GridOffsetY, MaxWidth,	/* allowed size */
-    MaxHeight;
+    GridOffsetY;
+  /* TODO: Set this always to MAX_COORD, no saving needed.
+           Kept for compatibility and until the GUI code can deal
+           with the dynamic extent. */
+  Coord MaxWidth, MaxHeight;	/* allowed size */
+  Coord ExtentMinX, ExtentMinY,	/* extent, defined by the outline layer */
+    ExtentMaxX, ExtentMaxY;
 
   Coord Grid;			/* used grid with offsets */
-  double Zoom,			/* zoom factor */
-    IsleArea,			/* minimum poly island to retain */
+  double IsleArea,		/* minimum poly island to retain */
     ThermScale;			/* scale factor used with thermals */
   FontType Font;
   LayerGroupType LayerGroups;
@@ -632,6 +636,7 @@ typedef struct			/* some resources... */
     *ElementSelectedColor,
     *RatSelectedColor,
     *ConnectedColor,
+    *FoundColor,
     *OffLimitColor,
     *GridColor,
     *LayerColor[MAX_LAYER],
@@ -643,9 +648,7 @@ typedef struct			/* some resources... */
     Shrink, minWid, minSlk, minDrill, minRing;
   int TextScale;		/* text scaling in % */
   Coord Grid;			/* grid in pcb-units */
-  double Zoom,
-    IsleArea,    		/* polygon min area */
-    PinoutZoom;			/* same for pinout windows */
+  double IsleArea;		/* polygon min area */
   int PinoutNameLength,		/* max displayed length of a pinname */
     Volume,			/* the speakers volume -100..100 */
     CharPerLine,		/* width of an output line in characters */

@@ -1024,7 +1024,6 @@ CreateRouteData ()
    * this saves on searching the trees to find the nets
    */
   /* use the DRCFLAG to mark objects as they are entered */
-  ResetConnections (false);
   Nets = CollectSubnets (false);
   {
     routebox_t *last_net = NULL;
@@ -1469,14 +1468,14 @@ showbox (BoxType b, Dimension thickness, int group)
 
   if (ddraw != NULL)
     {
-      ddraw->set_line_width (ar_gc, thickness);
-      ddraw->set_line_cap (ar_gc, Trace_Cap);
-      ddraw->set_color (ar_gc, SLayer->Color);
+      ddraw->graphics->set_line_width (ar_gc, thickness);
+      ddraw->graphics->set_line_cap (ar_gc, Trace_Cap);
+      ddraw->graphics->set_color (ar_gc, SLayer->Color);
 
-      ddraw->draw_line (ar_gc, b.X1, b.Y1, b.X2, b.Y1);
-      ddraw->draw_line (ar_gc, b.X1, b.Y2, b.X2, b.Y2);
-      ddraw->draw_line (ar_gc, b.X1, b.Y1, b.X1, b.Y2);
-      ddraw->draw_line (ar_gc, b.X2, b.Y1, b.X2, b.Y2);
+      ddraw->graphics->draw_line (ar_gc, b.X1, b.Y1, b.X2, b.Y1);
+      ddraw->graphics->draw_line (ar_gc, b.X1, b.Y2, b.X2, b.Y2);
+      ddraw->graphics->draw_line (ar_gc, b.X1, b.Y1, b.X1, b.Y2);
+      ddraw->graphics->draw_line (ar_gc, b.X2, b.Y1, b.X2, b.Y2);
     }
 
 #if 1
@@ -1525,23 +1524,23 @@ showedge (edge_t * e)
   if (ddraw == NULL)
     return;
 
-  ddraw->set_line_cap (ar_gc, Trace_Cap);
-  ddraw->set_line_width (ar_gc, 1);
-  ddraw->set_color (ar_gc, Settings.MaskColor);
+  ddraw->graphics->set_line_cap (ar_gc, Trace_Cap);
+  ddraw->graphics->set_line_width (ar_gc, 1);
+  ddraw->graphics->set_color (ar_gc, Settings.MaskColor);
 
   switch (e->expand_dir)
     {
     case NORTH:
-      ddraw->draw_line (ar_gc, b->X1, b->Y1, b->X2, b->Y1);
+      ddraw->graphics->draw_line (ar_gc, b->X1, b->Y1, b->X2, b->Y1);
       break;
     case SOUTH:
-      ddraw->draw_line (ar_gc, b->X1, b->Y2, b->X2, b->Y2);
+      ddraw->graphics->draw_line (ar_gc, b->X1, b->Y2, b->X2, b->Y2);
       break;
     case WEST:
-      ddraw->draw_line (ar_gc, b->X1, b->Y1, b->X1, b->Y2);
+      ddraw->graphics->draw_line (ar_gc, b->X1, b->Y1, b->X1, b->Y2);
       break;
     case EAST:
-      ddraw->draw_line (ar_gc, b->X2, b->Y1, b->X2, b->Y2);
+      ddraw->graphics->draw_line (ar_gc, b->X2, b->Y1, b->X2, b->Y2);
       break;
     default:
       break;
@@ -5166,8 +5165,8 @@ AutoRoute (bool selected)
   ddraw = gui->request_debug_draw ();
   if (ddraw != NULL)
     {
-      ar_gc = ddraw->make_gc ();
-      ddraw->set_line_cap (ar_gc, Round_Cap);
+      ar_gc = ddraw->graphics->make_gc ();
+      ddraw->graphics->set_line_cap (ar_gc, Round_Cap);
     }
 #endif
 
@@ -5184,7 +5183,6 @@ AutoRoute (bool selected)
     }
   if (PCB->Data->RatN == 0)
     return (false);
-  SaveFindFlag (DRCFLAG);
   rd = CreateRouteData ();
 
   if (1)
@@ -5333,7 +5331,10 @@ donerouting:
     }
 #ifdef ROUTE_DEBUG
   if (ddraw != NULL)
-    ddraw->finish_debug_draw ();
+    {
+      ddraw->graphics->destroy_gc (ar_gc);
+      ddraw->finish_debug_draw ();
+    }
 #endif
 
   if (changed)
@@ -5355,7 +5356,6 @@ donerouting:
 
       Redraw ();
     }
-  RestoreFindFlag ();
 #if defined (ROUTE_DEBUG)
   aabort = 0;
 #endif

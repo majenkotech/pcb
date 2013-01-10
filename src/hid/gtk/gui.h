@@ -27,6 +27,7 @@
 
 #include "global.h"
 #include "hid.h"
+#include "hid_draw.h"
 #include "hid/common/hid_resource.h"
 
 #include "data.h"
@@ -296,7 +297,6 @@ gint ghid_port_window_motion_cb (GtkWidget * widget,
 gint ghid_port_window_mouse_scroll_cb (GtkWidget * widget,
 				       GdkEventScroll * ev, GHidPort * out);
 
-
 gint ghid_port_drawing_area_configure_event_cb (GtkWidget * widget,
 						GdkEventConfigure * ev,
 						GHidPort * out);
@@ -473,7 +473,7 @@ void ghid_pinout_window_show (GHidPort *out, ElementType *Element);
 int ghid_set_layer (const char *name, int group, int empty);
 hidGC ghid_make_gc (void);
 void ghid_destroy_gc (hidGC);
-void ghid_use_mask (int use_it);
+void ghid_use_mask (enum mask_mode mode);
 void ghid_set_color (hidGC gc, const char *name);
 void ghid_set_line_cap (hidGC gc, EndCapStyle style);
 void ghid_set_line_width (hidGC gc, Coord width);
@@ -505,6 +505,8 @@ void ghid_flush_debug_draw (void);
 void ghid_finish_debug_draw (void);
 bool ghid_event_to_pcb_coords (int event_x, int event_y, Coord *pcb_x, Coord *pcb_y);
 bool ghid_pcb_to_event_coords (Coord pcb_x, Coord pcb_y, int *event_x, int *event_y);
+void ghid_port_rotate (void *ball, float *quarternion, gpointer userdata);
+void ghid_view_2d (void *ball, gboolean view_2d, gpointer userdata);
 
 void ghid_lead_user_to_location (Coord x, Coord y);
 void ghid_cancel_lead_user (void);

@@ -70,6 +70,7 @@
 #include "rats.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/hidnogui.h"
 #include "hid/common/draw_helpers.h"
@@ -105,6 +106,7 @@ struct hid_gc_struct {
 };
 
 static HID nelma_hid;
+static HID_DRAW nelma_graphics;
 
 static struct color_struct *black = NULL, *white = NULL;
 static Coord    linewidth = -1;
@@ -776,7 +778,7 @@ nelma_destroy_gc(hidGC gc)
 }
 
 static void 
-nelma_use_mask(int use_it)
+nelma_use_mask(enum mask_mode mode)
 {
 	/* does nothing */
 }
@@ -1036,9 +1038,10 @@ void
 hid_nelma_init()
 {
   memset (&nelma_hid, 0, sizeof (HID));
+  memset (&nelma_graphics, 0, sizeof (HID_DRAW));
 
   common_nogui_init (&nelma_hid);
-  common_draw_helpers_init (&nelma_hid);
+  common_draw_helpers_init (&nelma_graphics);
 
   nelma_hid.struct_size         = sizeof (HID);
   nelma_hid.name                = "nelma";
@@ -1050,22 +1053,25 @@ hid_nelma_init()
   nelma_hid.do_export           = nelma_do_export;
   nelma_hid.parse_arguments     = nelma_parse_arguments;
   nelma_hid.set_layer           = nelma_set_layer;
-  nelma_hid.make_gc             = nelma_make_gc;
-  nelma_hid.destroy_gc          = nelma_destroy_gc;
-  nelma_hid.use_mask            = nelma_use_mask;
-  nelma_hid.set_color           = nelma_set_color;
-  nelma_hid.set_line_cap        = nelma_set_line_cap;
-  nelma_hid.set_line_width      = nelma_set_line_width;
-  nelma_hid.set_draw_xor        = nelma_set_draw_xor;
-  nelma_hid.set_draw_faded      = nelma_set_draw_faded;
-  nelma_hid.draw_line           = nelma_draw_line;
-  nelma_hid.draw_arc            = nelma_draw_arc;
-  nelma_hid.draw_rect           = nelma_draw_rect;
-  nelma_hid.fill_circle         = nelma_fill_circle;
-  nelma_hid.fill_polygon        = nelma_fill_polygon;
-  nelma_hid.fill_rect           = nelma_fill_rect;
   nelma_hid.calibrate           = nelma_calibrate;
   nelma_hid.set_crosshair       = nelma_set_crosshair;
+
+  nelma_hid.graphics            = &nelma_graphics;
+
+  nelma_graphics.make_gc        = nelma_make_gc;
+  nelma_graphics.destroy_gc     = nelma_destroy_gc;
+  nelma_graphics.use_mask       = nelma_use_mask;
+  nelma_graphics.set_color      = nelma_set_color;
+  nelma_graphics.set_line_cap   = nelma_set_line_cap;
+  nelma_graphics.set_line_width = nelma_set_line_width;
+  nelma_graphics.set_draw_xor   = nelma_set_draw_xor;
+  nelma_graphics.set_draw_faded = nelma_set_draw_faded;
+  nelma_graphics.draw_line      = nelma_draw_line;
+  nelma_graphics.draw_arc       = nelma_draw_arc;
+  nelma_graphics.draw_rect      = nelma_draw_rect;
+  nelma_graphics.fill_circle    = nelma_fill_circle;
+  nelma_graphics.fill_polygon   = nelma_fill_polygon;
+  nelma_graphics.fill_rect      = nelma_fill_rect;
 
   hid_register_hid (&nelma_hid);
 

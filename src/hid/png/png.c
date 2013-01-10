@@ -41,6 +41,7 @@
 #include "misc.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/hidnogui.h"
 #include "hid/common/draw_helpers.h"
@@ -58,6 +59,7 @@
 #define CRASH fprintf(stderr, "HID error: pcb called unimplemented PNG function %s.\n", __FUNCTION__); abort()
 
 static HID png_hid;
+static HID_DRAW png_graphics;
 
 static void *color_cache = NULL;
 static void *brush_cache = NULL;
@@ -310,7 +312,7 @@ Convert output to monochrome.
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
-@item --only-vivible
+@item --only-visible
 Limit the bounds of the exported PNG image to the visible items.
 @end ftable
 %end-doc
@@ -332,6 +334,17 @@ Make the background and any holes transparent.
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
+@item --fill-holes
+Drill holes in pins/pads are filled, not hollow.
+@end ftable
+%end-doc
+*/
+  {"fill-holes", "Drill holes in pins/pads are filled, not hollow",
+   HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
+#define HA_fill_holes 9
+
+/* %start-doc options "93 PNG Options"
+@ftable @code
 @item --format <string>
 File format to be exported. Parameter @code{<string>} can be @samp{PNG},
 @samp{GIF}, or @samp{JPEG}.
@@ -340,7 +353,7 @@ File format to be exported. Parameter @code{<string>} can be @samp{PNG},
 */
   {"format", "Export file format",
    HID_Enum, 0, 0, {0, 0, 0}, filetypes, 0},
-#define HA_filetype 9
+#define HA_filetype 10
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -353,7 +366,7 @@ Amount of extra thickness to add to traces, pads, or pin edges. The parameter
 */
   {"png-bloat", "Amount (in/mm/mil/pix) to add to trace/pad/pin edges (1 = 1/100 mil)",
    HID_String, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_bloat 10
+#define HA_bloat 11
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -365,7 +378,7 @@ Export a photo realistic image of the layout.
 */
   {"photo-mode", "Photo-realistic export mode",
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_photo_mode 11
+#define HA_photo_mode 12
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -376,7 +389,7 @@ In photo-realistic mode, export the reverse side of the layout. Left-right flip.
 */
   {"photo-flip-x", "Show reverse side of the board, left-right flip",
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_photo_flip_x 12
+#define HA_photo_flip_x 13
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -387,7 +400,7 @@ In photo-realistic mode, export the reverse side of the layout. Up-down flip.
 */
   {"photo-flip-y", "Show reverse side of the board, up-down flip",
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_photo_flip_y 13
+#define HA_photo_flip_y 14
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -400,7 +413,7 @@ In photo-realistic mode, export the solder mask as this colour. Parameter
 */
   {"photo-mask-colour", "Colour for the exported colour mask",
    HID_Enum, 0, 0, {0, 0, 0}, mask_colour_names, 0},
-#define HA_photo_mask_colour 14
+#define HA_photo_mask_colour 15
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -414,7 +427,7 @@ of plating. Parameter @code{<colour>} can be @samp{tinned}, @samp{gold},
 */
   {"photo-plating", "Type of plating applied to exposed copper in photo-mode",
    HID_Enum, 0, 0, {0, 0, 0}, plating_type_names, 0},
-#define HA_photo_plating 15
+#define HA_photo_plating 16
 
 /* %start-doc options "93 PNG Options"
 @ftable @code
@@ -427,19 +440,19 @@ In photo-realistic mode, export the silk screen as this colour. Parameter
 */
   {"photo-silk-colour", "Colour for the exported colour mask",
    HID_Enum, 0, 0, {0, 0, 0}, silk_colour_names, 0},
-#define HA_photo_silk_colour 16
+#define HA_photo_silk_colour 17
 
   {"ben-mode", ATTR_UNDOCUMENTED,
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_ben_mode 11
+#define HA_ben_mode 12
 
   {"ben-flip-x", ATTR_UNDOCUMENTED,
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_ben_flip_x 12
+#define HA_ben_flip_x 13
 
   {"ben-flip-y", ATTR_UNDOCUMENTED,
    HID_Boolean, 0, 0, {0, 0, 0}, 0, 0},
-#define HA_ben_flip_y 13
+#define HA_ben_flip_y 14
 };
 
 #define NUM_OPTIONS (sizeof(png_attribute_list)/sizeof(png_attribute_list[0]))
@@ -523,7 +536,7 @@ layer_sort (const void *va, const void *vb)
 
 static const char *filename;
 static BoxType *bounds;
-static int in_mono, as_shown;
+static int in_mono, as_shown, fill_holes;
 
 static void
 parse_bloat (const char *str)
@@ -579,6 +592,8 @@ png_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
   saved_show_solder_side = Settings.ShowSolderSide;
 
   as_shown = options[HA_as_shown].int_value;
+  fill_holes = options[HA_fill_holes].int_value;
+
   if (!options[HA_as_shown].int_value)
     {
       CLEAR_FLAG (SHOWMASKFLAG, PCB);
@@ -1191,6 +1206,7 @@ png_parse_arguments (int *argc, char ***argv)
 
 static int is_mask;
 static int is_drill;
+static int is_copper;
 
 static int
 png_set_layer (const char *name, int group, int empty)
@@ -1213,6 +1229,10 @@ png_set_layer (const char *name, int group, int empty)
 
   is_drill = (SL_TYPE (idx) == SL_PDRILL || SL_TYPE (idx) == SL_UDRILL);
   is_mask = (SL_TYPE (idx) == SL_MASK);
+  is_copper = (SL_TYPE (idx) == 0);
+
+  if (is_drill && fill_holes)
+    return 0;
 
   if (SL_TYPE (idx) == SL_PASTE)
     return 0;
@@ -1357,16 +1377,16 @@ png_destroy_gc (hidGC gc)
 }
 
 static void
-png_use_mask (int use_it)
+png_use_mask (enum mask_mode mode)
 {
   if (photo_mode)
     return;
 
-  if (use_it == HID_MASK_CLEAR)
+  if (mode == HID_MASK_CLEAR)
     {
       return;
     }
-  if (use_it)
+  if (mode != HID_MASK_OFF)
     {
       if (mask_im == NULL)
 	{
@@ -1743,6 +1763,9 @@ png_fill_circle (hidGC gc, Coord cx, Coord cy, Coord radius)
 
   use_gc (gc);
 
+  if (fill_holes && gc->is_erase && is_copper)
+    return;
+
   if (gc->is_erase)
     my_bloat = -2 * bloat;
   else
@@ -1802,9 +1825,10 @@ void
 hid_png_init ()
 {
   memset (&png_hid, 0, sizeof (HID));
+  memset (&png_graphics, 0, sizeof (HID_DRAW));
 
   common_nogui_init (&png_hid);
-  common_draw_helpers_init (&png_hid);
+  common_draw_helpers_init (&png_graphics);
 
   png_hid.struct_size = sizeof (HID);
   png_hid.name        = "png";
@@ -1816,21 +1840,24 @@ hid_png_init ()
   png_hid.do_export           = png_do_export;
   png_hid.parse_arguments     = png_parse_arguments;
   png_hid.set_layer           = png_set_layer;
-  png_hid.make_gc             = png_make_gc;
-  png_hid.destroy_gc          = png_destroy_gc;
-  png_hid.use_mask            = png_use_mask;
-  png_hid.set_color           = png_set_color;
-  png_hid.set_line_cap        = png_set_line_cap;
-  png_hid.set_line_width      = png_set_line_width;
-  png_hid.set_draw_xor        = png_set_draw_xor;
-  png_hid.draw_line           = png_draw_line;
-  png_hid.draw_arc            = png_draw_arc;
-  png_hid.draw_rect           = png_draw_rect;
-  png_hid.fill_circle         = png_fill_circle;
-  png_hid.fill_polygon        = png_fill_polygon;
-  png_hid.fill_rect           = png_fill_rect;
   png_hid.calibrate           = png_calibrate;
   png_hid.set_crosshair       = png_set_crosshair;
+
+  png_hid.graphics            = &png_graphics;
+
+  png_graphics.make_gc        = png_make_gc;
+  png_graphics.destroy_gc     = png_destroy_gc;
+  png_graphics.use_mask       = png_use_mask;
+  png_graphics.set_color      = png_set_color;
+  png_graphics.set_line_cap   = png_set_line_cap;
+  png_graphics.set_line_width = png_set_line_width;
+  png_graphics.set_draw_xor   = png_set_draw_xor;
+  png_graphics.draw_line      = png_draw_line;
+  png_graphics.draw_arc       = png_draw_arc;
+  png_graphics.draw_rect      = png_draw_rect;
+  png_graphics.fill_circle    = png_fill_circle;
+  png_graphics.fill_polygon   = png_fill_polygon;
+  png_graphics.fill_rect      = png_fill_rect;
 
 #ifdef HAVE_SOME_FORMAT
   hid_register_hid (&png_hid);

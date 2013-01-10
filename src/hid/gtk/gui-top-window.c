@@ -121,6 +121,7 @@ a zoom in/out.
 
 #include "gui-icons-mode-buttons.data"
 #include "gui-icons-misc.data"
+#include "gui-trackball.h"
 
 #ifdef HAVE_LIBDMALLOC
 #include <dmalloc.h>
@@ -265,8 +266,8 @@ show_file_modified_externally_prompt (void)
 
   file_path_utf8 = g_filename_to_utf8 (PCB->Filename, -1, NULL, NULL, NULL);
 
-  secondary_text = PCB->Changed ? "Do you want to drop your changes and reload the file?" :
-                                  "Do you want to reload the file?";
+  secondary_text = PCB->Changed ? _("Do you want to drop your changes and reload the file?") :
+                                  _("Do you want to reload the file?");
 
   markup =  g_markup_printf_escaped (_("<b>The file %s has changed on disk</b>\n\n%s"),
                                      file_path_utf8, secondary_text);
@@ -1241,6 +1242,10 @@ ghid_build_pcb_top_window (void)
   GtkWidget *vbox_main, *hbox_middle, *hbox;
   GtkWidget *vbox, *frame;
   GtkWidget *label;
+  /* FIXME: IFDEF HACK */
+#ifdef ENABLE_GL
+  GtkWidget *trackball;
+#endif
   GHidPort *port = &ghid_port;
   GtkWidget *scrolled;
 
@@ -1318,6 +1323,17 @@ ghid_build_pcb_top_window (void)
                              GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
   gtk_box_pack_start (GTK_BOX(vbox), ghidgui->layer_selector,
                       FALSE, FALSE, 0);
+
+  /* FIXME: IFDEF HACK */
+#ifdef ENABLE_GL
+  trackball = ghid_trackball_new ();
+  g_signal_connect (trackball, "rotation-changed",
+                    G_CALLBACK (ghid_port_rotate), NULL);
+  g_signal_connect (trackball, "view-2d-changed",
+                    G_CALLBACK (ghid_view_2d), NULL);
+  gtk_box_pack_start (GTK_BOX(ghidgui->left_toolbar),
+                      trackball, FALSE, FALSE, 0);
+#endif
 
   /* ghidgui->mode_buttons_frame was created above in the call to
    * make_mode_buttons_and_toolbar (...);
@@ -1580,7 +1596,7 @@ ghid_listener_cb (GIOChannel *source,
 
   if (condition & G_IO_HUP)
     {
-      gui->log ("Read end of pipe died!\n");
+      gui->log (_("Read end of pipe died!\n"));
       return FALSE;
     }
 
@@ -1595,30 +1611,30 @@ ghid_listener_cb (GIOChannel *source,
 	  break;
 
 	case G_IO_STATUS_ERROR:
-	  gui->log ("ERROR status from g_io_channel_read_line\n");
+	  gui->log (_("ERROR status from g_io_channel_read_line\n"));
 	  return FALSE;
 	  break;
 
 	case G_IO_STATUS_EOF:
-	  gui->log ("Input pipe returned EOF.  The --listen option is \n"
-		    "probably not running anymore in this session.\n");
+	  gui->log (_("Input pipe returned EOF.  The --listen option is \n"
+		    "probably not running anymore in this session.\n"));
 	  return FALSE;
 	  break;
 
 	case G_IO_STATUS_AGAIN:
-	  gui->log ("AGAIN status from g_io_channel_read_line\n");
+	  gui->log (_("AGAIN status from g_io_channel_read_line\n"));
 	  return FALSE;
 	  break;
 
 	default:
-	  fprintf (stderr, "ERROR:  unhandled case in ghid_listener_cb\n");
+	  fprintf (stderr, _("ERROR:  unhandled case in ghid_listener_cb\n"));
 	  return FALSE;
 	  break;
 	}
 
     }
   else
-    fprintf (stderr, "Unknown condition in ghid_listener_cb\n");
+    fprintf (stderr, _("Unknown condition in ghid_listener_cb\n"));
   
   return TRUE;
 }
@@ -2030,8 +2046,8 @@ ghid_check_special_key (const char *accel, GtkAction *action,
     {
       if (ind >= N_HOTKEY_ACTIONS)
 	{
-	  fprintf (stderr, "ERROR:  overflow of the ghid_hotkey_actions array.  Index = %d\n"
-		   "Please report this.\n", ind);
+	  fprintf (stderr, _("ERROR:  overflow of the ghid_hotkey_actions array.  Index = %d\n"
+		   "Please report this.\n"), ind);
 	  exit (1);
 	}
 
@@ -2096,13 +2112,13 @@ ghid_load_menus (void)
   filename = get_menu_filename ();
   if (filename)
     {
-      Message ("Loading menus from %s\n", filename);
+      Message (_("Loading menus from %s\n"), filename);
       r = resource_parse (filename, 0);
     }
 
   if (!r)
     {
-      Message ("Using default menus\n");
+      Message (_("Using default menus\n"));
       r = bir;
     }
   free (filename);

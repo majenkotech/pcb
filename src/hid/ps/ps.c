@@ -17,6 +17,7 @@
 #include "pcb-printf.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/hidnogui.h"
 #include "hid/common/draw_helpers.h"
@@ -992,10 +993,11 @@ ps_set_layer (const char *name, int group, int empty)
     fprintf (global.f, "gsave tx ty translate 1 -1 scale 0 0 moveto ( ) show grestore newpath /ty ty ts sub def\n");
 #endif
 
-  /* If we're printing a layer other than the outline layer, and
-     we want to "print outlines", and we have an outline layer,
+  /* If we're printing a copper layer other than the outline layer,
+     and we want to "print outlines", and we have an outline layer,
      print the outline layer on this layer also.  */
   if (global.outline &&
+      global.is_copper &&
       global.outline_layer != NULL &&
       global.outline_layer != PCB->Data->Layer+idx &&
       strcmp (name, "outline") != 0 &&
@@ -1024,7 +1026,7 @@ ps_destroy_gc (hidGC gc)
 }
 
 static void
-ps_use_mask (int use_it)
+ps_use_mask (enum mask_mode mode)
 {
   /* does nothing */
 }
@@ -1242,7 +1244,7 @@ ps_fill_polygon (hidGC gc, int n_coords, Coord *x, Coord *y)
 }
 
 static void
-ps_fill_pcb_polygon (hidGC gc, PolygonType * poly, const BoxType * clip_box)
+fill_polyarea (hidGC gc, POLYAREA * pa, const BoxType * clip_box)
 {
   /* Ignore clip_box, just draw everything */
 
@@ -1252,7 +1254,7 @@ ps_fill_pcb_polygon (hidGC gc, PolygonType * poly, const BoxType * clip_box)
 
   use_gc (gc);
 
-  pl = poly->Clipped->contours;
+  pl = pa->contours;
 
   do
     {
@@ -1268,6 +1270,19 @@ ps_fill_pcb_polygon (hidGC gc, PolygonType * poly, const BoxType * clip_box)
   while ((pl = pl->next) != NULL);
 
   fprintf (global.f, "fill\n");
+}
+
+static void
+ps_draw_pcb_polygon (hidGC gc, PolygonType * poly, const BoxType * clip_box)
+{
+  fill_polyarea (gc, poly->Clipped, clip_box);
+  if (TEST_FLAG (FULLPOLYFLAG, poly))
+    {
+      POLYAREA *pa;
+
+      for (pa = poly->Clipped->f; pa != poly->Clipped; pa = pa->f)
+        fill_polyarea (gc, pa, clip_box);
+    }
 }
 
 static void
@@ -1487,6 +1502,7 @@ ps_set_crosshair (int x, int y, int action)
 #include "dolists.h"
 
 HID ps_hid;
+static HID_DRAW ps_graphics;
 
 void ps_ps_init (HID *hid)
 {
@@ -1494,39 +1510,48 @@ void ps_ps_init (HID *hid)
   hid->do_export          = ps_do_export;
   hid->parse_arguments    = ps_parse_arguments;
   hid->set_layer          = ps_set_layer;
-  hid->make_gc            = ps_make_gc;
-  hid->destroy_gc         = ps_destroy_gc;
-  hid->use_mask           = ps_use_mask;
-  hid->set_color          = ps_set_color;
-  hid->set_line_cap       = ps_set_line_cap;
-  hid->set_line_width     = ps_set_line_width;
-  hid->set_draw_xor       = ps_set_draw_xor;
-  hid->set_draw_faded     = ps_set_draw_faded;
-  hid->draw_line          = ps_draw_line;
-  hid->draw_arc           = ps_draw_arc;
-  hid->draw_rect          = ps_draw_rect;
-  hid->fill_circle        = ps_fill_circle;
-  hid->fill_polygon       = ps_fill_polygon;
-  hid->fill_pcb_polygon   = ps_fill_pcb_polygon;
-  hid->fill_rect          = ps_fill_rect;
   hid->calibrate          = ps_calibrate;
   hid->set_crosshair      = ps_set_crosshair;
+}
+
+void ps_ps_graphics_init (HID_DRAW *graphics)
+{
+  graphics->make_gc            = ps_make_gc;
+  graphics->destroy_gc         = ps_destroy_gc;
+  graphics->use_mask           = ps_use_mask;
+  graphics->set_color          = ps_set_color;
+  graphics->set_line_cap       = ps_set_line_cap;
+  graphics->set_line_width     = ps_set_line_width;
+  graphics->set_draw_xor       = ps_set_draw_xor;
+  graphics->set_draw_faded     = ps_set_draw_faded;
+  graphics->draw_line          = ps_draw_line;
+  graphics->draw_arc           = ps_draw_arc;
+  graphics->draw_rect          = ps_draw_rect;
+  graphics->fill_circle        = ps_fill_circle;
+  graphics->fill_polygon       = ps_fill_polygon;
+  graphics->fill_rect          = ps_fill_rect;
+
+  graphics->draw_pcb_polygon   = ps_draw_pcb_polygon;
 }
 
 void
 hid_ps_init ()
 {
   memset (&ps_hid, 0, sizeof (HID));
+  memset (&ps_graphics, 0, sizeof (HID_DRAW));
 
   common_nogui_init (&ps_hid);
-  common_draw_helpers_init (&ps_hid);
+  common_draw_helpers_init (&ps_graphics);
   ps_ps_init (&ps_hid);
+  ps_ps_graphics_init (&ps_graphics);
 
   ps_hid.struct_size        = sizeof (HID);
   ps_hid.name               = "ps";
   ps_hid.description        = "Postscript export";
   ps_hid.exporter           = 1;
   ps_hid.poly_before        = 1;
+
+  ps_hid.graphics           = &ps_graphics;
 
   hid_register_hid (&ps_hid);
 

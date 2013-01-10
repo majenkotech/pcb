@@ -458,10 +458,10 @@ GatherSubnets (NetListType *Netl, bool NoWarn, bool AndRats)
   for (m = 0; Netl->NetN > 0 && m < Netl->NetN; m++)
     {
       a = &Netl->Net[m];
-      ResetConnections (false);
+      ClearFlagOnAllObjects (false, DRCFLAG);
       RatFindHook (a->Connection[0].type, a->Connection[0].ptr1,
-		   a->Connection[0].ptr2, a->Connection[0].ptr2, false,
-		   AndRats);
+                   a->Connection[0].ptr2, a->Connection[0].ptr2,
+                   false, DRCFLAG, AndRats);
       /* now anybody connected to the first point has DRCFLAG set */
       /* so move those to this subnet */
       CLEAR_FLAG (DRCFLAG, (PinType *) a->Connection[0].ptr2);
@@ -537,7 +537,7 @@ GatherSubnets (NetListType *Netl, bool NoWarn, bool AndRats)
       if (!NoWarn)
 	Warned |= CheckShorts (a->Connection[0].menu);
     }
-  ResetConnections (false);
+  ClearFlagOnAllObjects (false, DRCFLAG);
   return (Warned);
 }
 
@@ -742,7 +742,6 @@ AddAllRats (bool SelectedOnly, void (*funcp) (register ConnectionType *, registe
   changed = false;
   /* initialize finding engine */
   InitConnectionLookup ();
-  SaveFindFlag (DRCFLAG);
   Nets = (NetListType *)calloc (1, sizeof (NetListType));
   /* now we build another netlist (Nets) for each
    * net in Wantlist that shows how it actually looks now,
@@ -778,7 +777,6 @@ AddAllRats (bool SelectedOnly, void (*funcp) (register ConnectionType *, registe
   FreeNetListMemory (Nets);
   free (Nets);
   FreeConnectionLookupMemory ();
-  RestoreFindFlag ();
   if (funcp)
     return (true);
 
@@ -835,7 +833,6 @@ CollectSubnets (bool SelectedOnly)
     }
   /* initialize finding engine */
   InitConnectionLookup ();
-  SaveFindFlag (DRCFLAG);
   /* now we build another netlist (Nets) for each
    * net in Wantlist that shows how it actually looks now,
    * then fill in any missing connections with rat lines.
@@ -868,7 +865,6 @@ CollectSubnets (bool SelectedOnly)
   }
   END_LOOP;
   FreeConnectionLookupMemory ();
-  RestoreFindFlag ();
   return result;
 }
 

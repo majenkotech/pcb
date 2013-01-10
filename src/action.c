@@ -107,6 +107,7 @@ typedef enum
   F_ClearAndRedraw,
   F_ClearList,
   F_Close,
+  F_Found,
   F_Connection,
   F_Convert,
   F_Copy,
@@ -342,6 +343,7 @@ static FunctionType Functions[] = {
   {"ClearAndRedraw", F_ClearAndRedraw},
   {"ClearList", F_ClearList},
   {"Close", F_Close},
+  {"Found", F_Found},
   {"Connection", F_Connection},
   {"Convert", F_Convert},
   {"Copy", F_Copy},
@@ -532,7 +534,7 @@ FinishStroke (void)
 	case 96521:
 	case 96541:
 	case 98541:
-	  SetZoom (1000);	/* special zoom extents */
+	  /* XXX: FIXME: Call a zoom-extents action */
 	  break;
 	case 159:
 	case 1269:
@@ -543,28 +545,8 @@ FinishStroke (void)
 	case 12569:
 	case 12589:
 	case 14589:
-	  {
-	    Coord x = (StrokeBox.X1 + StrokeBox.X2) / 2;
-	    Coord y = (StrokeBox.Y1 + StrokeBox.Y2) / 2;
-	    double z;
-	    /* XXX: PCB->MaxWidth and PCB->MaxHeight may be the wrong
-	     *      divisors below. The old code WAS broken, but this
-             *      replacement has not been tested for correctness.
-	     */
-	    z =
-	      1 +
-	      log (fabs (StrokeBox.X2 - StrokeBox.X1) / PCB->MaxWidth) /
-	      log (2.0);
-	    z =
-	      MAX (z,
-		   1 +
-		   log (fabs (StrokeBox.Y2 - StrokeBox.Y1) / PCB->MaxHeight) /
-		   log (2.0));
-	    SetZoom (z);
-
-	    CenterDisplay (x, y);
-	    break;
-	  }
+	  /* XXX: FIXME: Zoom to fit the box StrokeBox.[X1,Y1] - StrokeBox.[X2,Y2] */
+	  break;
 
 	default:
 	  Message (_("Unknown stroke %s\n"), msg);
@@ -893,8 +875,8 @@ NotifyLine (void)
 	  type = SearchScreen (Crosshair.X, Crosshair.Y,
 			       PIN_TYPE | PAD_TYPE | VIA_TYPE, &ptr1, &ptr2,
 			       &ptr3);
-	  LookupConnection (Crosshair.X, Crosshair.Y, true, 1,
-			    FOUNDFLAG);
+	  LookupConnection (Crosshair.X, Crosshair.Y, true, 1, CONNECTEDFLAG, false);
+	  LookupConnection (Crosshair.X, Crosshair.Y, true, 1, FOUNDFLAG, true);
 	}
       if (type == PIN_TYPE || type == VIA_TYPE)
 	{
@@ -1236,7 +1218,13 @@ NotifyMode (void)
 	/* create line if both ends are determined && length != 0 */
 	{
 	  LineType *line;
-	  int maybe_found_flag;
+	  int line_flags = 0;
+
+	  if (TEST_FLAG (AUTODRCFLAG, PCB) && !TEST_SILK_LAYER (CURRENT))
+	    line_flags |= CONNECTEDFLAG | FOUNDFLAG;
+
+	  if (TEST_FLAG (CLEARNEWFLAG, PCB))
+	    line_flags |= CLEARLINEFLAG;
 
 	  if (PCB->Clipping
 	      && Crosshair.AttachedLine.Point1.X ==
@@ -1253,12 +1241,6 @@ NotifyMode (void)
 	      Crosshair.AttachedLine.Point2.Y = Note.Y;
 	    }
 
-	  if (TEST_FLAG (AUTODRCFLAG, PCB)
-	      && ! TEST_SILK_LAYER (CURRENT))
-	    maybe_found_flag = FOUNDFLAG;
-	  else
-	    maybe_found_flag = 0;
-
 	  if ((Crosshair.AttachedLine.Point1.X !=
 	       Crosshair.AttachedLine.Point2.X
 	       || Crosshair.AttachedLine.Point1.Y !=
@@ -1271,11 +1253,7 @@ NotifyMode (void)
 					  Crosshair.AttachedLine.Point2.Y,
 					  Settings.LineThickness,
 					  2 * Settings.Keepaway,
-					  MakeFlags (maybe_found_flag |
-						     (TEST_FLAG
-						      (CLEARNEWFLAG,
-						       PCB) ? CLEARLINEFLAG :
-						      0)))) != NULL)
+					  MakeFlags (line_flags))) != NULL)
 	    {
 	      PinType *via;
 
@@ -1322,13 +1300,7 @@ NotifyMode (void)
 					  Note.X, Note.Y,
 					  Settings.LineThickness,
 					  2 * Settings.Keepaway,
-					  MakeFlags ((TEST_FLAG
-						      (AUTODRCFLAG,
-						       PCB) ? FOUNDFLAG : 0) |
-						     (TEST_FLAG
-						      (CLEARNEWFLAG,
-						       PCB) ? CLEARLINEFLAG :
-						      0)))) != NULL)
+					  MakeFlags (line_flags))) != NULL)
 	    {
 	      addedLines++;
 	      AddObjectToCreateUndoList (LINE_TYPE, CURRENT, line, line);
@@ -1344,6 +1316,8 @@ NotifyMode (void)
 		  PCB->Clipping ^= 3;
 		}
 	    }
+	  if (TEST_FLAG (AUTODRCFLAG, PCB) && !TEST_SILK_LAYER (CURRENT))
+	    LookupConnection (Note.X, Note.Y, true, 1, CONNECTEDFLAG, false);
 	  Draw ();
 	}
       break;
@@ -2312,12 +2286,13 @@ ActionConnection (int argc, char **argv, Coord x, Coord y)
 	case F_Find:
 	  {
 	    gui->get_coords (_("Click on a connection"), &x, &y);
-	    LookupConnection (x, y, true, 1, FOUNDFLAG);
+	    LookupConnection (x, y, true, 1, CONNECTEDFLAG, false);
+	    LookupConnection (x, y, true, 1, FOUNDFLAG, true);
 	    break;
 	  }
 
 	case F_ResetLinesAndPolygons:
-	  if (ResetFoundLinesAndPolygons (true))
+	  if (ClearFlagOnLinesAndPolygons (true, CONNECTEDFLAG | FOUNDFLAG))
 	    {
 	      IncrementUndoSerialNumber ();
 	      Draw ();
@@ -2325,7 +2300,7 @@ ActionConnection (int argc, char **argv, Coord x, Coord y)
 	  break;
 
 	case F_ResetPinsViasAndPads:
-	  if (ResetFoundPinsViasAndPads (true))
+	  if (ClearFlagOnPinsViasAndPads (true, CONNECTEDFLAG | FOUNDFLAG))
 	    {
 	      IncrementUndoSerialNumber ();
 	      Draw ();
@@ -2333,7 +2308,7 @@ ActionConnection (int argc, char **argv, Coord x, Coord y)
 	  break;
 
 	case F_Reset:
-	  if (ResetConnections (true))
+	  if (ClearFlagOnAllObjects (true, CONNECTEDFLAG | FOUNDFLAG))
 	    {
 	      IncrementUndoSerialNumber ();
 	      Draw ();
@@ -2770,15 +2745,20 @@ ActionDisplay (int argc, char **argv, Coord childX, Coord childY)
 	  TOGGLE_FLAG (AUTODRCFLAG, PCB);
 	  if (TEST_FLAG (AUTODRCFLAG, PCB) && Settings.Mode == LINE_MODE)
 	    {
-	      if (ResetConnections (true))
+	      if (ClearFlagOnAllObjects (true, CONNECTEDFLAG | FOUNDFLAG))
 		{
 		  IncrementUndoSerialNumber ();
 		  Draw ();
 		}
 	      if (Crosshair.AttachedLine.State != STATE_FIRST)
-		LookupConnection (Crosshair.AttachedLine.Point1.X,
-				  Crosshair.AttachedLine.Point1.Y, true, 1,
-				  FOUNDFLAG);
+		{
+		  LookupConnection (Crosshair.AttachedLine.Point1.X,
+		                    Crosshair.AttachedLine.Point1.Y,
+		                    true, 1, CONNECTEDFLAG, false);
+		  LookupConnection (Crosshair.AttachedLine.Point1.X,
+		                    Crosshair.AttachedLine.Point1.Y,
+		                    true, 1, FOUNDFLAG, true);
+		}
 	    }
 	  notify_crosshair_change (true);
 	  break;
@@ -5337,8 +5317,11 @@ Selects all objects in a rectangle indicated by the cursor.
 @item All
 Selects all objects on the board.
 
-@item Connection
+@item Found
 Selects all connections with the ``found'' flag set.
+
+@item Connection
+Selects all connections with the ``connected'' flag set.
 
 @item Convert
 Converts the selected objects to an element.  This uses the highest
@@ -5444,9 +5427,19 @@ ActionSelect (int argc, char **argv, Coord x, Coord y)
 	    break;
 	  }
 
-	  /* all found connections */
+	  /* all logical connections */
+	case F_Found:
+	  if (SelectByFlag (FOUNDFLAG, true))
+	    {
+              Draw ();
+	      IncrementUndoSerialNumber ();
+	      SetChangedFlag (true);
+	    }
+	  break;
+
+	  /* all physical connections */
 	case F_Connection:
-	  if (SelectConnection (true))
+	  if (SelectByFlag (CONNECTEDFLAG, true))
 	    {
               Draw ();
 	      IncrementUndoSerialNumber ();
@@ -5623,9 +5616,19 @@ ActionUnselect (int argc, char **argv, Coord x, Coord y)
 	    break;
 	  }
 
-	  /* all found connections */
+	  /* all logical connections */
+	case F_Found:
+	  if (SelectByFlag (FOUNDFLAG, false))
+	    {
+              Draw ();
+	      IncrementUndoSerialNumber ();
+	      SetChangedFlag (true);
+	    }
+	  break;
+
+	  /* all physical connections */
 	case F_Connection:
-	  if (SelectConnection (false))
+	  if (SelectByFlag (CONNECTEDFLAG, false))
 	    {
               Draw ();
 	      IncrementUndoSerialNumber ();
@@ -6269,7 +6272,8 @@ ActionUndo (int argc, char **argv, Coord x, Coord y)
 		  ptr2 = (LineType *) ptrtmp;
 	          if (TEST_FLAG (AUTODRCFLAG, PCB))
 		    {
-		      /* undo loses FOUNDFLAG */
+		      /* undo loses CONNECTEDFLAG and FOUNDFLAG */
+		      SET_FLAG(CONNECTEDFLAG, ptr2);
 		      SET_FLAG(FOUNDFLAG, ptr2);
 		      DrawLine (CURRENT, ptr2);
 		    }

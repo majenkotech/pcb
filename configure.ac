@@ -88,15 +88,10 @@ PCB_PATH_DELIMETER=":"
 PCB_DIR_SEPARATOR_S="/"
 PCB_DIR_SEPARATOR_C='/'
 case $host in
-	*-*-cygwin* )
-		CFLAGS="$CFLAGS ${CYGWIN_CFLAGS}"
-		CPPFLAGS="$CPPFLAGS ${CYGWIN_CPPFLAGS}"
-		;;
-
 	*-*-mingw* )
 		WIN32=yes
 		CFLAGS="$CFLAGS ${MINGW_CFLAGS:--mms-bitfields -mwindows}"
-		CPPFLAGS="$CPPFLAGS ${MINGW_CPPFLAGS:--mms-bitfields -mwindows}"
+		CPPFLAGS="$CPPFLAGS ${MINGW_CPPFLAGS}"
 		;;
 
 	* )
@@ -464,7 +459,7 @@ fi
 for hid in $HIDLIST; do
     F=$srcdir/src/hid/$hid/hid.conf
     if test -f $F ; then
-        echo checking $hid depedencies
+        echo checking $hid dependencies
         deps=
         . $F
         for dep in $deps; do
@@ -706,11 +701,17 @@ You may want to review the following errors:
 $GLIB_PKG_ERRORS])]
 )
 
+need_gdlib=no
+with_gif=no
+with_png=no
+with_jpeg=no
+
 for e in $HIDLIST; do
     case $e in
       lesstif )
 	AC_PATH_XTRA
-	CPPFLAGS="$CFLAGS $X_CFLAGS"
+	save_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$X_CFLAGS"
 	AC_CHECK_LIB(X11, XOpenDisplay, , , $X_LIBS)
 	AC_CHECK_LIB(ICE, main, , , $X_LIBS)
 	AC_CHECK_LIB(SM, main, , , $X_LIBS)
@@ -718,7 +719,8 @@ for e in $HIDLIST; do
 	AC_CHECK_LIB(Xt, XtOpenDisplay, , , $X_LIBS)
 	AC_CHECK_LIB(Xmu, main, , , $X_LIBS)
 	AC_CHECK_LIB(Xpm, main, , , $X_LIBS)
-        AC_CHECK_LIB(Xm, XmCreateMainWindow, , , $X_LIBS)
+	AC_CHECK_LIB(Xm, XmCreateMainWindow, , , $X_LIBS)
+	CPPFLAGS="$save_CPPFLAGS"
 	case $ac_cv_lib_Xm_XmCreateMainWindow in
 	  no )
 	    AC_MSG_ERROR([You don't seem to have the Lesstif development environment installed.])
@@ -761,7 +763,66 @@ $GTKGLEXT_PKG_ERRORS])]
 
 	;;
 
-      gcode|nelma|png )
+      png)
+	need_gdlib=yes
+	AC_MSG_CHECKING([if GIF output from the png HID is desired])
+	AC_ARG_ENABLE([gif],
+		[  --disable-gif           Disable support for gif output when the png HID is used [[default=include gif support]]],
+		[
+		if test "X$enable_gif" != "Xno" ; then
+			AC_MSG_RESULT([yes])
+			with_gif=yes
+		else
+			AC_MSG_RESULT([no])
+		fi
+		],
+		[
+		AC_MSG_RESULT([yes])
+		with_gif=yes
+		])
+
+	AC_MSG_CHECKING([if JPEG output from the png HID is desired])
+	AC_ARG_ENABLE([jpeg],
+		[  --disable-jpeg          Disable support for JPEG output when the png HID is used [[default=include JPEG support]]],
+		[
+		if test "X$enable_jpeg" != "Xno" ; then
+			AC_MSG_RESULT([yes])
+			with_jpeg=yes
+		else
+			AC_MSG_RESULT([no])
+		fi
+		],
+		[
+		AC_MSG_RESULT([yes])
+		with_jpeg=yes
+		])
+
+	AC_MSG_CHECKING([if PNG output from the png HID is desired])
+	AC_ARG_ENABLE([png],
+		[  --disable-png           Disable support for PNG output when the png HID is used [[default=include PNG support]]],
+		[
+		if test "X$enable_png" != "Xno" ; then
+			AC_MSG_RESULT([yes])
+			with_png=yes
+		else
+			AC_MSG_RESULT([no])
+		fi
+		],
+		[
+		AC_MSG_RESULT([yes])
+		with_png=yes
+		])
+	;;
+
+      gcode|nelma)
+	need_gdlib=yes
+	with_png=yes
+	;;
+
+    esac
+done
+
+if test "$need_gdlib" = "yes"; then
 	# Check for gdlib-config for gd (www.boutell.com/gd)
 	AC_PATH_PROG(GDLIB_CONFIG, gdlib-config, no)
 	if test "$GDLIB_CONFIG" = "no"; then
@@ -795,9 +856,10 @@ you will get lucky.
 	# since some linux systems evidently install gdlib-config but fail to
 	# install the headers (nice), check for the header too and fail if it
 	# is not there.
-	CFLAGS="$CFLAGS $GD_CFLAGS"
+	save_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $GD_CFLAGS"
 	AC_CHECK_HEADERS(gd.h)
+	CPPFLASS="$save_CPPFLAGS"
 	case $ac_cv_header_gd_h in
 	     no )
 		AC_MSG_ERROR([
@@ -814,22 +876,6 @@ This is needed for the nelma and/or png HID.
 	save_LIBS="$LIBS"
 	LIBS="$save_LIBS $GD_LIBS $X_LIBS"
 
-	AC_MSG_CHECKING([if GIF output from the png HID is desired])
-	AC_ARG_ENABLE([gif],
-		[  --disable-gif           Disable support for gif output when the png HID is used [[default=include gif support]]],
-		[
-		if test "X$enable_gif" != "Xno" ; then
-			AC_MSG_RESULT([yes])
-			with_gif=yes
-		else
-			AC_MSG_RESULT([no])
-			with_gif=no
-		fi
-		],
-		[
-		AC_MSG_RESULT([yes])
-		with_gif=yes
-		])
 	if test "X$with_gif" = "Xyes" ; then
 		AC_CHECK_FUNCS(gdImageGif)
 		if test "$ac_cv_func_gdImageGif" != "yes"; then
@@ -839,22 +885,6 @@ gif export with --disable-gif])
 		fi
 	fi
 
-	AC_MSG_CHECKING([if JPEG output from the png HID is desired])
-	AC_ARG_ENABLE([jpeg],
-		[  --disable-jpeg          Disable support for JPEG output when the png HID is used [[default=include JPEG support]]],
-		[
-		if test "X$enable_jpeg" != "Xno" ; then
-			AC_MSG_RESULT([yes])
-			with_jpeg=yes
-		else
-			AC_MSG_RESULT([no])
-			with_jpeg=no
-		fi
-		],
-		[
-		AC_MSG_RESULT([yes])
-		with_jpeg=yes
-		])
 	if test "X$with_jpeg" = "Xyes" ; then
 		AC_CHECK_FUNCS(gdImageJpeg)
 		if test "$ac_cv_func_gdImageJpeg" != "yes"; then
@@ -864,23 +894,6 @@ JPEG export with --disable-jpeg])
 		fi
 	fi
 
-
-	AC_MSG_CHECKING([if PNG output from the png HID is desired])
-	AC_ARG_ENABLE([png],
-		[  --disable-png           Disable support for PNG output when the png HID is used [[default=include PNG support]]],
-		[
-		if test "X$enable_png" != "Xno" ; then
-			AC_MSG_RESULT([yes])
-			with_png=yes
-		else
-			AC_MSG_RESULT([no])
-			with_png=no
-		fi
-		],
-		[
-		AC_MSG_RESULT([yes])
-		with_png=yes
-		])
 	if test "X$with_png" = "Xyes" ; then
 		AC_CHECK_FUNCS(gdImagePng)
 		if test "$ac_cv_func_gdImagePng" != "yes"; then
@@ -890,11 +903,7 @@ PNG export with --disable-png])
 		fi
 	fi
 	LIBS="$save_LIBS"
-	;;
-
-    esac
-done
-
+fi
 
 AM_CONDITIONAL(PNG, test x$with_png = xyes)
 AM_CONDITIONAL(GIF, test x$with_gif = xyes)
@@ -1108,9 +1117,9 @@ AC_DEFINE_UNQUOTED([COORD_TYPE],[$COORD_TYPE],
 AC_DEFINE_UNQUOTED([COORD_MAX],[$COORD_MAX],
   [Maximum value of coordinate type])
 
-# ------------- Complete set of CFLAGS and LIBS -------------------
+# ------------- Complete set of CPPFLAGS and LIBS -------------------
 
-CFLAGS="$CFLAGS $X_CFLAGS $DBUS_CFLAGS $GLIB_CFLAGS $GTK_CFLAGS $CAIRO_CFLAGS $GTKGLEXT_CFLAGS $GLU_CFLAGS $GL_CFLAGS"
+CPPFLAGS="$CPPFLAGS $X_CFLAGS $DBUS_CFLAGS $GLIB_CFLAGS $GTK_CFLAGS $GD_CFLAGS $CAIRO_CFLAGS $GTKGLEXT_CFLAGS $GLU_CFLAGS $GL_CFLAGS"
 LIBS="$LIBS $XM_LIBS $DBUS_LIBS $X_LIBS $GLIB_LIBS $GTK_LIBS $DMALLOC_LIBS $GD_LIBS $INTLLIBS $CAIRO_LIBS $GTKGLEXT_LIBS $GLU_LIBS $GL_LIBS"
 
 
@@ -1171,15 +1180,12 @@ ENABLE_BUILD_WITH_CXX=no)
 case "$ENABLE_BUILD_WITH_CXX" in
   yes)
     CC_OR_CXX="$CXX"
-    CC_OR_CXX_FLAGS="$CXXFLAGS"
     ;;
   no)
     CC_OR_CXX="$CC"
-    CC_OR_CXX_FLAGS="$CFLAGS"
     ;;
 esac
 AC_SUBST(CC_OR_CXX)
-AC_SUBST(CC_OR_CXX_FLAGS)
 
 # font filename
 FONTFILENAME=${FONTFILENAME:-"default_font"}

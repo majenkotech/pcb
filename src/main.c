@@ -271,7 +271,7 @@ usage (void)
 	n_exporter++;
     }
 
-  u ("PCB Printed Circuit Board editing program, http://pcb.gpleda.org");
+  u ("PCB Printed Circuit Board editing program, http://pcb.geda-project.org");
   u ("%s [-h|-V|--copyright]\t\t\tHelp, version, copyright", Progname);
   u ("%s [gui options] <pcb file>\t\tto edit", Progname);
   u ("Available GUI hid%s:", n_gui == 1 ? "" : "s");
@@ -760,12 +760,22 @@ Color of selected rats. Default: @samp{#00ffff}
 /* %start-doc options "3 Colors"
 @ftable @code
 @item --connected-color <string>
-Color to indicate connections. Default: @samp{#00ff00}
+Color to indicate physical connections. Default: @samp{#00ff00}
 @end ftable
 %end-doc
 */
   COLOR (ConnectedColor, "#00ff00", "connected-color",
-	 "color to indicate connections"),
+	 "color to indicate physically connected objects"),
+
+/* %start-doc options "3 Colors"
+@ftable @code
+@item --found-color <string>
+Color to indicate logical connections. Default: @samp{#ff00ff}
+@end ftable
+%end-doc
+*/
+  COLOR (FoundColor, "#ff00ff", "found-color",
+	 "color to indicate logically connected objects"),
 
 /* %start-doc options "3 Colors"
 @ftable @code

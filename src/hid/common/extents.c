@@ -11,15 +11,12 @@
 #include "data.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/draw_helpers.h"
 
 #ifdef HAVE_LIBDMALLOC
 #include <dmalloc.h>
-#endif
-
-#ifndef MAXINT
-#define MAXINT (((unsigned int)(~0))>>1)
 #endif
 
 static BoxType box;
@@ -71,7 +68,7 @@ extents_destroy_gc (hidGC gc)
 }
 
 static void
-extents_use_mask (int use_it)
+extents_use_mask (enum mask_mode mode)
 {
 }
 
@@ -156,6 +153,7 @@ extents_fill_rect (hidGC gc, Coord x1, Coord y1, Coord x2, Coord y2)
 }
 
 static HID extents_hid;
+static HID_DRAW extents_graphics;
 
 void
 hid_extents_init (void)
@@ -166,8 +164,9 @@ hid_extents_init (void)
     return;
 
   memset (&extents_hid, 0, sizeof (HID));
+  memset (&extents_graphics, 0, sizeof (HID_DRAW));
 
-  common_draw_helpers_init (&extents_hid);
+  common_draw_helpers_init (&extents_graphics);
 
   extents_hid.struct_size         = sizeof (HID);
   extents_hid.name                = "extents-extents";
@@ -175,22 +174,26 @@ hid_extents_init (void)
   extents_hid.poly_before         = 1;
 
   extents_hid.set_layer           = extents_set_layer;
-  extents_hid.make_gc             = extents_make_gc;
-  extents_hid.destroy_gc          = extents_destroy_gc;
-  extents_hid.use_mask            = extents_use_mask;
-  extents_hid.set_color           = extents_set_color;
-  extents_hid.set_line_cap        = extents_set_line_cap;
-  extents_hid.set_line_width      = extents_set_line_width;
-  extents_hid.set_draw_xor        = extents_set_draw_xor;
-  extents_hid.draw_line           = extents_draw_line;
-  extents_hid.draw_arc            = extents_draw_arc;
-  extents_hid.draw_rect           = extents_draw_rect;
-  extents_hid.fill_circle         = extents_fill_circle;
-  extents_hid.fill_polygon        = extents_fill_polygon;
-  extents_hid.fill_rect           = extents_fill_rect;
+
+  extents_hid.graphics            = &extents_graphics;
+
+  extents_graphics.make_gc        = extents_make_gc;
+  extents_graphics.destroy_gc     = extents_destroy_gc;
+  extents_graphics.use_mask       = extents_use_mask;
+  extents_graphics.set_color      = extents_set_color;
+  extents_graphics.set_line_cap   = extents_set_line_cap;
+  extents_graphics.set_line_width = extents_set_line_width;
+  extents_graphics.set_draw_xor   = extents_set_draw_xor;
+  extents_graphics.draw_line      = extents_draw_line;
+  extents_graphics.draw_arc       = extents_draw_arc;
+  extents_graphics.draw_rect      = extents_draw_rect;
+  extents_graphics.fill_circle    = extents_fill_circle;
+  extents_graphics.fill_polygon   = extents_fill_polygon;
+  extents_graphics.fill_rect      = extents_fill_rect;
 
   initialised = true;
 }
+
 
 BoxType *
 hid_get_extents (void *item)
@@ -200,15 +203,15 @@ hid_get_extents (void *item)
   /* As this isn't a real "HID", we need to ensure we are initialised. */
   hid_extents_init ();
 
-  box.X1 = MAXINT;
-  box.Y1 = MAXINT;
-  box.X2 = -MAXINT;
-  box.Y2 = -MAXINT;
+  box.X1 = COORD_MAX;
+  box.Y1 = COORD_MAX;
+  box.X2 = -COORD_MAX - 1;
+  box.Y2 = -COORD_MAX - 1;
 
-  region.X1 = -MAXINT;
-  region.Y1 = -MAXINT;
-  region.X2 = MAXINT;
-  region.Y2 = MAXINT;
+  region.X1 = -COORD_MAX - 1;
+  region.Y1 = -COORD_MAX - 1;
+  region.X2 = COORD_MAX;
+  region.Y2 = COORD_MAX;
   hid_expose_callback (&extents_hid, &region, item);
 
   return &box;

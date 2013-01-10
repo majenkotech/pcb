@@ -25,6 +25,7 @@
 #include "error.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/hidnogui.h"
 #include "hid/common/draw_helpers.h"
@@ -57,6 +58,7 @@ typedef struct hid_gc_struct
 } hid_gc_struct;
 
 static HID lesstif_hid;
+static HID_DRAW lesstif_graphics;
 
 #define CRASH fprintf(stderr, "HID error: pcb called unimplemented GUI function %s\n", __FUNCTION__), abort()
 
@@ -157,19 +159,19 @@ ShowCrosshair (bool show)
 }
 
 static int
-flag_flipx (int x)
+flag_flipx (void *data)
 {
   return flip_x;
 }
 static int
-flag_flipy (int x)
+flag_flipy (void *data)
 {
   return flip_y;
 }
 
 HID_Flag lesstif_main_flag_list[] = {
-  {"flip_x", flag_flipx, 0},
-  {"flip_y", flag_flipy, 0}
+  {"flip_x", flag_flipx, NULL},
+  {"flip_y", flag_flipy, NULL}
 };
 
 REGISTER_FLAGS (lesstif_main_flag_list)
@@ -4039,9 +4041,10 @@ void
 hid_lesstif_init ()
 {
   memset (&lesstif_hid, 0, sizeof (HID));
+  memset (&lesstif_graphics, 0, sizeof (HID_DRAW));
 
   common_nogui_init (&lesstif_hid);
-  common_draw_helpers_init (&lesstif_hid);
+  common_draw_helpers_init (&lesstif_graphics);
 
   lesstif_hid.struct_size             = sizeof (HID);
   lesstif_hid.name                    = "lesstif";
@@ -4057,19 +4060,6 @@ hid_lesstif_init ()
   lesstif_hid.notify_crosshair_change = lesstif_notify_crosshair_change;
   lesstif_hid.notify_mark_change      = lesstif_notify_mark_change;
   lesstif_hid.set_layer               = lesstif_set_layer;
-  lesstif_hid.make_gc                 = lesstif_make_gc;
-  lesstif_hid.destroy_gc              = lesstif_destroy_gc;
-  lesstif_hid.use_mask                = lesstif_use_mask;
-  lesstif_hid.set_color               = lesstif_set_color;
-  lesstif_hid.set_line_cap            = lesstif_set_line_cap;
-  lesstif_hid.set_line_width          = lesstif_set_line_width;
-  lesstif_hid.set_draw_xor            = lesstif_set_draw_xor;
-  lesstif_hid.draw_line               = lesstif_draw_line;
-  lesstif_hid.draw_arc                = lesstif_draw_arc;
-  lesstif_hid.draw_rect               = lesstif_draw_rect;
-  lesstif_hid.fill_circle             = lesstif_fill_circle;
-  lesstif_hid.fill_polygon            = lesstif_fill_polygon;
-  lesstif_hid.fill_rect               = lesstif_fill_rect;
 
   lesstif_hid.calibrate               = lesstif_calibrate;
   lesstif_hid.shift_is_pressed        = lesstif_shift_is_pressed;
@@ -4100,6 +4090,24 @@ hid_lesstif_init ()
   lesstif_hid.request_debug_draw      = lesstif_request_debug_draw;
   lesstif_hid.flush_debug_draw        = lesstif_flush_debug_draw;
   lesstif_hid.finish_debug_draw       = lesstif_finish_debug_draw;
+
+  lesstif_hid.graphics                = &lesstif_graphics;
+
+  lesstif_graphics.make_gc             = lesstif_make_gc;
+  lesstif_graphics.destroy_gc          = lesstif_destroy_gc;
+  lesstif_graphics.use_mask            = lesstif_use_mask;
+  lesstif_graphics.set_color           = lesstif_set_color;
+  lesstif_graphics.set_line_cap        = lesstif_set_line_cap;
+  lesstif_graphics.set_line_width      = lesstif_set_line_width;
+  lesstif_graphics.set_draw_xor        = lesstif_set_draw_xor;
+  lesstif_graphics.draw_line           = lesstif_draw_line;
+  lesstif_graphics.draw_arc            = lesstif_draw_arc;
+  lesstif_graphics.draw_rect           = lesstif_draw_rect;
+  lesstif_graphics.fill_circle         = lesstif_fill_circle;
+  lesstif_graphics.fill_polygon        = lesstif_fill_polygon;
+  lesstif_graphics.fill_rect           = lesstif_fill_rect;
+
+  lesstif_graphics.draw_pcb_polygon    = common_gui_draw_pcb_polygon;
 
   hid_register_hid (&lesstif_hid);
 #include "lesstif_lists.h"

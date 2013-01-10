@@ -38,6 +38,7 @@
 #endif
 
 #include "global.h"
+#include "hid_draw.h"
 
 #include <time.h>
 #ifdef HAVE_UNISTD_H
@@ -76,14 +77,14 @@
 static void
 fab_line (hidGC gc, int x1, int y1, int x2, int y2)
 {
-  gui->draw_line (gc, x1, y1, x2, y2);
+  gui->graphics->draw_line (gc, x1, y1, x2, y2);
 }
 
 static void
 fab_circle (hidGC gc, int x, int y, int r)
 {
-  gui->draw_arc (gc, x, y, r, r, 0, 180);
-  gui->draw_arc (gc, x, y, r, r, 180, 180);
+  gui->graphics->draw_arc (gc, x, y, r, r, 0, 180);
+  gui->graphics->draw_arc (gc, x, y, r, r, 180, 180);
 }
 
 /* align is 0=left, 1=center, 2=right, add 8 for underline */
@@ -111,7 +112,7 @@ text_at (hidGC gc, int x, int y, int align, char *fmt, ...)
   t.X -= w * (align & 3) / 2;
   if (t.X < 0)
     t.X = 0;
-  DrawTextLowLevel (&t, 0);
+  gui->graphics->draw_pcb_text (gc, &t, 0);
   if (align & 8)
     fab_line (gc, t.X,
               t.Y + SCALE_TEXT (font->MaxHeight, t.Scale) + MIL_TO_COORD(10),
@@ -239,7 +240,7 @@ PrintFab (hidGC gc)
       yoff -= (4 - ds) * TEXT_LINE;
     }
 
-  gui->set_line_width (gc, FAB_LINE_W);
+  gui->graphics->set_line_width (gc, FAB_LINE_W);
 
   for (n = AllDrills->DrillN - 1; n >= 0; n--)
     {
@@ -249,7 +250,7 @@ PrintFab (hidGC gc)
 	plated_sym = --ds;
       if (drill->UnplatedCount)
 	unplated_sym = --ds;
-      gui->set_color (gc, PCB->PinColor);
+      gui->graphics->set_color (gc, PCB->PinColor);
       for (i = 0; i < drill->PinN; i++)
 	drill_sym (gc, TEST_FLAG (HOLEFLAG, drill->Pin[i]) ?
 		   unplated_sym : plated_sym, drill->Pin[i]->X,
@@ -270,7 +271,7 @@ PrintFab (hidGC gc)
 	  text_at (gc, MIL_TO_COORD(1400), yoff, MIL_TO_COORD(2), "NO");
 	  text_at (gc, MIL_TO_COORD(980), yoff, MIL_TO_COORD(2), "%d", drill->UnplatedCount);
 	}
-      gui->set_color (gc, PCB->ElementColor);
+      gui->graphics->set_color (gc, PCB->ElementColor);
       text_at (gc, MIL_TO_COORD(450), yoff, MIL_TO_COORD(2), "%0.3f",
 	       COORD_TO_INCH(drill->DrillSize) + 0.0004);
       if (plated_sym != -1 && unplated_sym != -1)
@@ -281,7 +282,7 @@ PrintFab (hidGC gc)
       total_drills += drill->ViaCount;
     }
 
-  gui->set_color (gc, PCB->ElementColor);
+  gui->graphics->set_color (gc, PCB->ElementColor);
   text_at (gc, 0, yoff, MIL_TO_COORD(9), "Symbol");
   text_at (gc, MIL_TO_COORD(410), yoff, MIL_TO_COORD(9), "Diam. (Inch)");
   text_at (gc, MIL_TO_COORD(950), yoff, MIL_TO_COORD(9), "Count");
@@ -311,15 +312,15 @@ PrintFab (hidGC gc)
     }
   if (i == max_copper_layer)
     {
-      gui->set_line_width (gc,  MIL_TO_COORD(10));
-      gui->draw_line (gc, 0, 0, PCB->MaxWidth, 0);
-      gui->draw_line (gc, 0, 0, 0, PCB->MaxHeight);
-      gui->draw_line (gc, PCB->MaxWidth, 0, PCB->MaxWidth,
+      gui->graphics->set_line_width (gc,  MIL_TO_COORD(10));
+      gui->graphics->draw_line (gc, 0, 0, PCB->MaxWidth, 0);
+      gui->graphics->draw_line (gc, 0, 0, 0, PCB->MaxHeight);
+      gui->graphics->draw_line (gc, PCB->MaxWidth, 0, PCB->MaxWidth,
 		      PCB->MaxHeight);
-      gui->draw_line (gc, 0, PCB->MaxHeight, PCB->MaxWidth,
+      gui->graphics->draw_line (gc, 0, PCB->MaxHeight, PCB->MaxWidth,
 		      PCB->MaxHeight);
       /*FPrintOutline (); */
-      gui->set_line_width (gc, FAB_LINE_W);
+      gui->graphics->set_line_width (gc, FAB_LINE_W);
       text_at (gc, MIL_TO_COORD(2000), yoff, 0,
 	       "Maximum Dimensions: %f mils wide, %f mils high",
 	       COORD_TO_MIL(PCB->MaxWidth), COORD_TO_MIL(PCB->MaxHeight));
@@ -331,25 +332,25 @@ PrintFab (hidGC gc)
   else
     {
       LayerType *layer = LAYER_PTR (i);
-      gui->set_line_width (gc, MIL_TO_COORD(10));
+      gui->graphics->set_line_width (gc, MIL_TO_COORD(10));
       LINE_LOOP (layer);
       {
-	gui->draw_line (gc, line->Point1.X, line->Point1.Y,
+	gui->graphics->draw_line (gc, line->Point1.X, line->Point1.Y,
 			line->Point2.X, line->Point2.Y);
       }
       END_LOOP;
       ARC_LOOP (layer);
       {
-	gui->draw_arc (gc, arc->X, arc->Y, arc->Width,
+	gui->graphics->draw_arc (gc, arc->X, arc->Y, arc->Width,
 		       arc->Height, arc->StartAngle, arc->Delta);
       }
       END_LOOP;
       TEXT_LOOP (layer);
       {
-	DrawTextLowLevel (text, 0);
+	gui->graphics->draw_pcb_text (gc, text, 0);
       }
       END_LOOP;
-      gui->set_line_width (gc, FAB_LINE_W);
+      gui->graphics->set_line_width (gc, FAB_LINE_W);
       text_at (gc, PCB->MaxWidth / 2, PCB->MaxHeight + MIL_TO_COORD(20), 1,
 	       "Board outline is the centerline of this path");
     }

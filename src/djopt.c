@@ -143,13 +143,13 @@ djopt_set_auto_only (int argc, char **argv, Coord x, Coord y)
 }
 
 static int
-djopt_get_auto_only (int dummy)
+djopt_get_auto_only (void *data)
 {
   return autorouted_only;
 }
 
 HID_Flag djopt_flag_list[] = {
-  {"optautoonly", djopt_get_auto_only, 0}
+  {"optautoonly", djopt_get_auto_only, NULL}
 };
 
 REGISTER_FLAGS (djopt_flag_list)
@@ -2917,11 +2917,6 @@ ActionDJopt (int argc, char **argv, Coord x, Coord y)
   char *arg = argc > 0 ? argv[0] : 0;
   int layn, saved = 0;
   corner_s *c;
-
-#ifdef ENDIF
-  SwitchDrawingWindow (PCB->Zoom, Output.drawing_area->window,
-		       Settings.ShowSolderSide, false);
-#endif
 
   hid_action("Busy");
 

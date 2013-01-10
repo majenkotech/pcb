@@ -32,8 +32,6 @@
 
 #include "global.h"
 
-/*bool	SwitchDrawingWindow(double, GdkDrawable *, gboolean, gboolean);*/
-
 void Draw (void);
 void Redraw (void);
 void DrawVia (PinType *);
@@ -46,7 +44,6 @@ void DrawPadName (PadType *);
 void DrawLine (LayerType *, LineType *);
 void DrawArc (LayerType *, ArcType *);
 void DrawText (LayerType *, TextType *);
-void DrawTextLowLevel (TextType *, Coord);
 void DrawPolygon (LayerType *, PolygonType *);
 void DrawElement (ElementType *);
 void DrawElementName (ElementType *);

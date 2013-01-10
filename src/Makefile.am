@@ -3,7 +3,6 @@
 SUBDIRS=	icons
 
 CC = @CC_OR_CXX@
-AM_CFLAGS = @CC_OR_CXX_FLAGS@
 
 pcbtreedir=	@PCBTREEDIR@
 pcblibdir=	@PCBLIBDIR@
@@ -26,7 +25,7 @@ bin_PROGRAMS=	pcb
 if DEBUG_BUILD
 # don't disable assert()
 else
-AM_CFLAGS += -DNDEBUG
+AM_CFLAGS= -DNDEBUG
 endif
 
 PCB_SRCS = \
@@ -79,6 +78,7 @@ PCB_SRCS = \
 	heap.c \
 	heap.h \
 	hid.h \
+	hid_draw.h \
 	insert.c \
 	insert.h \
 	intersect.c \
@@ -169,11 +169,16 @@ LIBGTK_GDK_SRCS= \
 	hid/gtk/gtkhid-gdk.c
 
 LIBGTK_GL_SRCS= \
-	hid/gtk/gtkhid-gl.c
+	hid/gtk/gtkhid-gl.c \
+	hid/gtk/gui-trackball.c \
+	hid/gtk/gui-trackball.h
 
 GL_SRCS= \
 	hid/common/hidgl.c \
-	hid/common/hidgl.h
+	hid/common/hidgl.h \
+	hid/common/trackball.c \
+	hid/common/trackball.h
+
 
 BUILT_SOURCES = \
 	core_lists.h \
@@ -418,7 +423,6 @@ LIBGCODE_SRCS = \
 	dolists.h \
 	hid/hidint.h \
 	hid/gcode/gcode.c \
-	hid/gcode/gcode.h \
 	hid/gcode/decompose.c \
 	hid/gcode/decompose.h \
 	hid/gcode/trace.c \

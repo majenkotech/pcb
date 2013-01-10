@@ -105,6 +105,7 @@ pcb_colors_from_settings (PCBType *ptr)
 
   /* copy default settings */
   ptr->ConnectedColor = Settings.ConnectedColor;
+  ptr->FoundColor = Settings.FoundColor;
   ptr->ElementColor = Settings.ElementColor;
   ptr->RatColor = Settings.RatColor;
   ptr->InvisibleObjectsColor = Settings.InvisibleObjectsColor;
@@ -188,7 +189,6 @@ CreateNewPCB (bool SetDefaultNames)
     style->index = n;
   }
   END_LOOP;
-  ptr->Zoom = Settings.Zoom;
   ptr->MaxWidth = Settings.MaxWidth;
   ptr->MaxHeight = Settings.MaxHeight;
   ptr->ID = ID++;
@@ -302,6 +302,7 @@ struct line_info
 {
   Coord X1, X2, Y1, Y2;
   Coord Thickness;
+  Coord Clearance;
   FlagType Flags;
   LineType test, *ans;
   jmp_buf env;
@@ -336,9 +337,11 @@ line_callback (const BoxType * b, void *cl)
       longjmp (i->env, 1);
     }
   /* remove unnecessary line points */
-  if (line->Thickness == i->Thickness
+  if (line->Thickness == i->Thickness &&
+      /* don't merge lines if the clearances differ  */
+      line->Clearance == i->Clearance &&
       /* don't merge lines if the clear flags differ  */
-      && TEST_FLAG (CLEARLINEFLAG, line) == TEST_FLAG (CLEARLINEFLAG, i))
+      TEST_FLAG (CLEARLINEFLAG, line) == TEST_FLAG (CLEARLINEFLAG, i))
     {
       if (line->Point1.X == i->X1 && line->Point1.Y == i->Y1)
 	{
@@ -419,6 +422,7 @@ CreateDrawnLineOnLayer (LayerType *Layer,
   info.Y1 = Y1;
   info.Y2 = Y2;
   info.Thickness = Thickness;
+  info.Clearance = Clearance;
   info.Flags = Flags;
   info.test.Thickness = 0;
   info.test.Flags = NoFlags ();
@@ -664,19 +668,18 @@ CreateNewHoleInPolygon (PolygonType *Polygon)
  * memory is allocated if needed
  */
 ElementType *
-CreateNewElement (DataType *Data, ElementType *Element,
-		  FontType *PCBFont,
-		  FlagType Flags,
+CreateNewElement (DataType *Data, FontType *PCBFont, FlagType Flags,
 		  char *Description, char *NameOnPCB, char *Value,
 		  Coord TextX, Coord TextY, BYTE Direction,
 		  int TextScale, FlagType TextFlags, bool uniqueName)
 {
+  ElementType *Element;
+
 #ifdef DEBUG
   printf("Entered CreateNewElement.....\n");
 #endif
 
-  if (!Element)
-    Element = GetElementMemory (Data);
+  Element = GetElementMemory (Data);
 
   /* copy values and set additional information */
   TextScale = MAX (MIN_TEXTSCALE, TextScale);

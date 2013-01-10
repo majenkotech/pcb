@@ -14,6 +14,7 @@
 #include "pcb-printf.h"
 
 #include "hid.h"
+#include "hid_draw.h"
 #include "../hidint.h"
 #include "hid/common/hidnogui.h"
 #include "hid/common/draw_helpers.h"
@@ -35,7 +36,7 @@ static void eps_parse_arguments (int *argc, char ***argv);
 static int eps_set_layer (const char *name, int group, int empty);
 static hidGC eps_make_gc (void);
 static void eps_destroy_gc (hidGC gc);
-static void eps_use_mask (int use_it);
+static void eps_use_mask (enum mask_mode mode);
 static void eps_set_color (hidGC gc, const char *name);
 static void eps_set_line_cap (hidGC gc, EndCapStyle style);
 static void eps_set_line_width (hidGC gc, Coord width);
@@ -59,6 +60,7 @@ typedef struct hid_gc_struct
 } hid_gc_struct;
 
 static HID eps_hid;
+static HID_DRAW eps_graphics;
 
 static FILE *f = 0;
 static Coord linewidth = -1;
@@ -269,7 +271,10 @@ eps_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
   in_mono = options[HA_mono].int_value;
 
 #define pcb2em(x) 1 + COORD_TO_INCH (x) * 72.0 * options[HA_scale].real_value
-  fprintf (f, "%%%%BoundingBox: 0 0 %f %f\n",
+  fprintf (f, "%%%%BoundingBox: 0 0 %lli %lli\n",
+	   llrint (pcb2em (bounds->X2 - bounds->X1)),
+	   llrint (pcb2em (bounds->Y2 - bounds->Y1)) );
+  fprintf (f, "%%%%HiResBoundingBox: 0.000000 0.000000 %.6f %.6f\n",
 	   pcb2em (bounds->X2 - bounds->X1),
 	   pcb2em (bounds->Y2 - bounds->Y1));
 #undef pcb2em
@@ -439,10 +444,10 @@ eps_destroy_gc (hidGC gc)
 }
 
 static void
-eps_use_mask (int use_it)
+eps_use_mask (enum mask_mode mode)
 {
   static int mask_pending = 0;
-  switch (use_it)
+  switch (mode)
     {
     case HID_MASK_CLEAR:
       if (!mask_pending)
@@ -451,6 +456,7 @@ eps_use_mask (int use_it)
 	  fprintf (f, "gsave\n");
 	}
       break;
+    case HID_MASK_BEFORE:
     case HID_MASK_AFTER:
       break;
     case HID_MASK_OFF:
@@ -662,9 +668,10 @@ void
 hid_eps_init ()
 {
   memset (&eps_hid, 0, sizeof (HID));
+  memset (&eps_graphics, 0, sizeof (HID_DRAW));
 
   common_nogui_init (&eps_hid);
-  common_draw_helpers_init (&eps_hid);
+  common_draw_helpers_init (&eps_graphics);
 
   eps_hid.struct_size         = sizeof (HID);
   eps_hid.name                = "eps";
@@ -676,21 +683,24 @@ hid_eps_init ()
   eps_hid.do_export           = eps_do_export;
   eps_hid.parse_arguments     = eps_parse_arguments;
   eps_hid.set_layer           = eps_set_layer;
-  eps_hid.make_gc             = eps_make_gc;
-  eps_hid.destroy_gc          = eps_destroy_gc;
-  eps_hid.use_mask            = eps_use_mask;
-  eps_hid.set_color           = eps_set_color;
-  eps_hid.set_line_cap        = eps_set_line_cap;
-  eps_hid.set_line_width      = eps_set_line_width;
-  eps_hid.set_draw_xor        = eps_set_draw_xor;
-  eps_hid.draw_line           = eps_draw_line;
-  eps_hid.draw_arc            = eps_draw_arc;
-  eps_hid.draw_rect           = eps_draw_rect;
-  eps_hid.fill_circle         = eps_fill_circle;
-  eps_hid.fill_polygon        = eps_fill_polygon;
-  eps_hid.fill_rect           = eps_fill_rect;
   eps_hid.calibrate           = eps_calibrate;
   eps_hid.set_crosshair       = eps_set_crosshair;
+
+  eps_hid.graphics            = &eps_graphics;
+
+  eps_graphics.make_gc        = eps_make_gc;
+  eps_graphics.destroy_gc     = eps_destroy_gc;
+  eps_graphics.use_mask       = eps_use_mask;
+  eps_graphics.set_color      = eps_set_color;
+  eps_graphics.set_line_cap   = eps_set_line_cap;
+  eps_graphics.set_line_width = eps_set_line_width;
+  eps_graphics.set_draw_xor   = eps_set_draw_xor;
+  eps_graphics.draw_line      = eps_draw_line;
+  eps_graphics.draw_arc       = eps_draw_arc;
+  eps_graphics.draw_rect      = eps_draw_rect;
+  eps_graphics.fill_circle    = eps_fill_circle;
+  eps_graphics.fill_polygon   = eps_fill_polygon;
+  eps_graphics.fill_rect      = eps_fill_rect;
 
   hid_register_hid (&eps_hid);
 }

@@ -70,7 +70,7 @@
 triangle_buffer buffer;
 float global_depth = 0;
 
-void
+static void
 hidgl_init_triangle_array (triangle_buffer *buffer)
 {
   buffer->triangle_count = 0;
@@ -409,21 +409,17 @@ static GLenum tessVertexType;
 static int stashed_vertices;
 static int triangle_comp_idx;
 
+#ifndef CALLBACK
+#define CALLBACK
+#endif
 
-static void
+static void CALLBACK
 myError (GLenum errno)
 {
   printf ("gluTess error: %s\n", gluErrorString (errno));
 }
 
-static void
-myFreeCombined ()
-{
-  while (combined_num_to_free)
-    free (combined_to_free [-- combined_num_to_free]);
-}
-
-static void
+static void CALLBACK
 myCombine ( GLdouble coords[3], void *vertex_data[4], GLfloat weight[4], void **dataOut )
 {
 #define MAX_COMBINED_VERTICES 2500
@@ -454,7 +450,7 @@ myCombine ( GLdouble coords[3], void *vertex_data[4], GLfloat weight[4], void **
   *dataOut = new_vertex;
 }
 
-static void
+static void CALLBACK
 myBegin (GLenum type)
 {
   tessVertexType = type;
@@ -464,7 +460,7 @@ myBegin (GLenum type)
 
 static double global_scale;
 
-static void
+static void CALLBACK
 myVertex (GLdouble *vertex_data)
 {
   static GLfloat triangle_vertices [2 * 3];
@@ -515,6 +511,13 @@ myVertex (GLdouble *vertex_data)
     }
   else
     printf ("Vertex received with unknown type\n");
+}
+
+static void
+myFreeCombined ()
+{
+  while (combined_num_to_free)
+    free (combined_to_free [-- combined_num_to_free]);
 }
 
 void
@@ -610,9 +613,8 @@ static GLint stencil_bits;
 static int dirty_bits = 0;
 static int assigned_bits = 0;
 
-/* FIXME: JUST DRAWS THE FIRST PIECE.. TODO: SUPPORT FOR FULLPOLY POLYGONS */
-void
-hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale)
+static void
+fill_polyarea (POLYAREA *pa, const BoxType *clip_box, double scale)
 {
   int vertex_count = 0;
   PLINE *contour;
@@ -621,12 +623,6 @@ hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale
 
   info.scale = scale;
   global_scale = scale;
-
-  if (poly->Clipped == NULL)
-    {
-      fprintf (stderr, "hidgl_fill_pcb_polygon: poly->Clipped == NULL\n");
-      return;
-    }
 
   stencil_bit = hidgl_assign_clear_stencil_bit ();
   if (!stencil_bit)
@@ -640,8 +636,7 @@ hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale
 
   /* Walk the polygon structure, counting vertices */
   /* This gives an upper bound on the amount of storage required */
-  for (contour = poly->Clipped->contours;
-       contour != NULL; contour = contour->next)
+  for (contour = pa->contours; contour != NULL; contour = contour->next)
     vertex_count = MAX (vertex_count, contour->Count);
 
   info.vertices = malloc (sizeof(GLdouble) * vertex_count * 3);
@@ -663,7 +658,7 @@ hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale
 
   /* Drawing operations now set our reference bit in the stencil buffer */
 
-  r_search (poly->Clipped->contour_tree, clip_box, NULL, do_hole, &info);
+  r_search (pa->contour_tree, clip_box, NULL, do_hole, &info);
   hidgl_flush_triangles (&buffer);
 
   glPopAttrib ();                               /* Restore the colour and stencil buffer write-mask etc.. */
@@ -679,7 +674,8 @@ hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale
   /* Drawing operations as masked to areas where the stencil buffer is '0' */
 
   /* Draw the polygon outer */
-  tesselate_contour (info.tobj, poly->Clipped->contours, info.vertices, scale);
+  tesselate_contour (info.tobj, pa->contours, info.vertices, scale);
+
   hidgl_flush_triangles (&buffer);
 
   /* Unassign our stencil buffer bit */
@@ -690,6 +686,23 @@ hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale
   gluDeleteTess (info.tobj);
   myFreeCombined ();
   free (info.vertices);
+}
+
+void
+hidgl_fill_pcb_polygon (PolygonType *poly, const BoxType *clip_box, double scale)
+{
+  if (poly->Clipped == NULL)
+    return;
+
+  fill_polyarea (poly->Clipped, clip_box, scale);
+
+  if (TEST_FLAG (FULLPOLYFLAG, poly))
+    {
+      POLYAREA *pa;
+
+      for (pa = poly->Clipped->f; pa != poly->Clipped; pa = pa->f)
+        fill_polyarea (pa, clip_box, scale);
+    }
 }
 
 void
@@ -717,6 +730,18 @@ hidgl_init (void)
               "Cannot use stencil buffer to sub-composite layers.\n");
       /* Do we need to disable that somewhere? */
     }
+}
+
+void
+hidgl_start_render (void)
+{
+  hidgl_init ();
+  hidgl_init_triangle_array (&buffer);
+}
+
+void
+hidgl_finish_render (void)
+{
 }
 
 int
