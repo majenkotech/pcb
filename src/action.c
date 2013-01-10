@@ -161,6 +161,7 @@ typedef enum
   F_ResetLinesAndPolygons,
   F_ResetPinsViasAndPads,
   F_Restore,
+  F_Scale,
   F_Rotate,
   F_Save,
   F_Selected,
@@ -395,6 +396,7 @@ static FunctionType Functions[] = {
   {"ResetPinsViasAndPads", F_ResetPinsViasAndPads},
   {"Restore", F_Restore},
   {"Revert", F_Revert},
+  {"Scale", F_Scale},
   {"Rotate", F_Rotate},
   {"Save", F_Save},
   {"Selected", F_Selected},
@@ -5853,6 +5855,14 @@ ActionLoadFrom (int argc, char **argv, Coord x, Coord y)
       notify_crosshair_change (true);
     }
 
+  else if (strcasecmp (function, "PostscriptToBuffer") == 0)
+    {
+      notify_crosshair_change (false);
+      if (LoadPostscriptToBuffer (PASTEBUFFER, name))
+	SetMode (PASTEBUFFER_MODE);
+      notify_crosshair_change (true);
+    }
+
   else if (strcasecmp (function, "Layout") == 0)
     {
       if (!PCB->Changed ||
@@ -6045,6 +6055,13 @@ ActionPasteBuffer (int argc, char **argv, Coord x, Coord y)
 	  MirrorBuffer (PASTEBUFFER);
 	  break;
 
+	case F_Scale:
+	  if (sbufnum)
+	    {
+	      ScaleBuffer (PASTEBUFFER, (BYTE) atoi (sbufnum));
+              SetCrosshairRangeToBuffer ();
+	    }
+	  break;
 	case F_Rotate:
 	  if (sbufnum)
 	    {

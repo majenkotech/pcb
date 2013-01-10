@@ -63,6 +63,7 @@ MainMenu =
    {"Import Schematics" Import() }
    {"Load element to buffer" PasteBuffer(Clear) Load(ElementTobuffer)}
    {"Load layout to buffer" PasteBuffer(Clear) Load(LayoutTobuffer)}
+   {"Load postscript to buffer" PasteBuffer(Clear) Load(PostscriptTobuffer)}
    {"Load netlist" Load(Netlist)}
    {"Load vendor resource file" LoadVendorFrom()}
    -
@@ -293,6 +294,13 @@ MainMenu =
    {"Cut to buffer" GetXY(Click to set the snap point for this buffer)
     PasteBuffer(Clear) PasteBuffer(AddSelected) RemoveSelected() Mode(PasteBuffer)}
    {"Paste buffer" Mode(PasteBuffer)}
+   -
+   {"Scale buffer by 25%" Mode(PasteBuffer) PasteBuffer(Scale,25)}
+   {"Scale buffer by 50%" Mode(PasteBuffer) PasteBuffer(Scale,50)}
+   {"Scale buffer by 75%" Mode(PasteBuffer) PasteBuffer(Scale,75)}
+   {"Scale buffer by 125%" Mode(PasteBuffer) PasteBuffer(Scale,125)}
+   {"Scale buffer by 150%" Mode(PasteBuffer) PasteBuffer(Scale,150)}
+   {"Scale buffer by 175%" Mode(PasteBuffer) PasteBuffer(Scale,175)}
    -
    {"Rotate buffer 90 deg CCW" Mode(PasteBuffer) PasteBuffer(Rotate,1)
     a={"Shift-F7" "Shift<Key>F7"}}

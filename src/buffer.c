@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <math.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "global.h"
 
@@ -1167,6 +1169,89 @@ LoadLayoutToBuffer (BufferType *Buffer, char *Filename)
   RemovePCB (newPCB);
       Buffer->Data->pcb = PCB;
   return (false);
+}
+
+bool
+LoadPostscriptToBuffer (BufferType *Buffer, char *Filename)
+{
+  PCBType *newPCB = CreateNewPCB (false);
+  char temp[2048];
+
+  snprintf(temp,2047,"pstoedit -f pcbfill -ssp \"%s\" \"/tmp/pstoedit-pcb-%d.pcb\"", Filename, getpid());
+  system(temp);
+  snprintf(temp,2047,"/tmp/pstoedit-pcb-%d.pcb",getpid());
+
+  /* new data isn't added to the undo list */
+  if (!ParsePCB (newPCB, temp))
+    {
+      /* clear data area and replace pointer */
+      ClearBuffer (Buffer);
+      free (Buffer->Data);
+      Buffer->Data = newPCB->Data;
+      newPCB->Data = NULL;
+      Buffer->X = newPCB->CursorX;
+      Buffer->Y = newPCB->CursorY;
+      RemovePCB (newPCB);
+      Buffer->Data->pcb = PCB;
+      unlink(temp);
+      return (true);
+    }
+
+  /* release unused memory */
+  RemovePCB (newPCB);
+      Buffer->Data->pcb = PCB;
+  unlink(temp);
+  return (false);
+}
+
+void ScalePolygon(PolygonType *Polygon, BYTE Amount)
+{
+  POLYGONPOINT_LOOP (Polygon);
+  {
+	point->X = point->X * (Amount / 100.0);
+	point->Y = point->Y * (Amount / 100.0);
+  }
+  END_LOOP;
+}
+
+void ScaleLine(LineType *Line, BYTE Amount)
+{
+	Line->Point1.X = Line->Point1.X * (Amount / 100.0);
+	Line->Point1.Y = Line->Point1.Y * (Amount / 100.0);
+	Line->Point2.X = Line->Point2.X * (Amount / 100.0);
+	Line->Point2.Y = Line->Point2.Y * (Amount / 100.0);
+}
+
+void ScaleElement(ElementType *Element, BYTE Amount)
+{
+	ELEMENTLINE_LOOP (Element);
+	{
+		ScaleLine(line,Amount);
+	}
+	END_LOOP;
+}
+
+void
+ScaleBuffer (BufferType *Buffer, BYTE Amount)
+{
+  ELEMENT_LOOP (Buffer->Data);
+  {
+	ScaleElement(element,Amount);
+  }
+  END_LOOP;
+
+  ALLLINE_LOOP (Buffer->Data);
+  {
+	ScaleLine(line,Amount);
+  }
+  ENDALL_LOOP;
+
+  ALLPOLYGON_LOOP (Buffer->Data);
+  {
+	ScalePolygon(polygon,Amount);
+  }
+  ENDALL_LOOP;
+
 }
 
 /* ---------------------------------------------------------------------------
