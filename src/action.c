@@ -586,6 +586,12 @@ ClearWarnings ()
   Draw ();
 }
 
+/* ---------------------------------------------------------------------------
+ *
+ * This is called a clicktime after a mouse down, to we can distinguish
+ * between short clicks (typically: select or create something) and long
+ * clicks. Long clicks typically drag something.
+ */
 static void
 click_cb (hidval hv)
 {
@@ -638,6 +644,11 @@ click_cb (hidval hv)
     }
 }
 
+/* ---------------------------------------------------------------------------
+ *
+ * This is typically called when the mouse has moved or the mouse
+ * button was released.
+ */
 static void
 ReleaseMode (void)
 {
@@ -947,8 +958,10 @@ NotifyBlock (void)
 
 /* ---------------------------------------------------------------------------
  *
- * does what's appropriate for the current mode setting. This normally
- * means creation of an object at the current crosshair location.
+ * This is called after every mode change, like mouse button pressed,
+ * mouse button released, dragging something started or a different tool
+ * selected. It does what's appropriate for the current mode setting.
+ * This can also mean creation of an object at the current crosshair location.
  *
  * new created objects are added to the create undo list of course
  */
@@ -7118,7 +7131,7 @@ ActionElementList (int argc, char **argv, Coord x, Coord y)
 	SetChangedFlag (true);
     }
 
-  else if (e && strcmp (DESCRIPTION_NAME(e), footprint) != 0)
+  else if (e && DESCRIPTION_NAME(e) && strcmp (DESCRIPTION_NAME(e), footprint) != 0)
     {
 #ifdef DEBUG
       printf("  ... Footprint on board, but different from footprint loaded.\n");
