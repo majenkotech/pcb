@@ -74,6 +74,7 @@ PCB_SRCS = \
 	fontmode.c \
 	free_atexit.c \
 	free_atexit.h \
+	gettext.h \
 	global.h \
 	heap.c \
 	heap.h \
@@ -235,6 +236,8 @@ EXTRA_DIST= \
 	$(srcdir)/hid/ps/hid.conf \
 	gpcb-menu.res.in \
 	pcb-menu.res.in \
+	gpcb-menu.res.h \
+	pcb-menu.res.h \
 	pcbtest.sh.in \
 	dbus.xml
 
@@ -261,6 +264,10 @@ gpcb-menu.h : gpcb-menu.res
 	echo 'const char *gpcb_menu_default[] = {' >> $@
 	sed 's/\\/\\\\/g; s/"/\\"/g; s/^/"/; s/$$/",/' < gpcb-menu.res >> $@
 	echo '0};' >> $@
+
+# Menus i18n
+%.res.h : %.res
+	$(INTLTOOL_EXTRACT) --type=gettext/quoted $^
 
 hid/common/hidlist.h : Makefile
 	$(MKDIR_P) hid/common
@@ -470,7 +477,9 @@ DISTCLEANFILES= pcbtest.sh gpcb-menu.h pcb-menu.h \
 	core_lists.h \
 	dbus-introspect.h \
 	gpcb-menu.res \
-	pcb-menu.res
+	pcb-menu.res \
+	gpcb-menu.res.h \
+	pcb-menu.res.h
 
 # create wrapper script that lets you test pcb prior to installation
 pcbtest.sh:	$(srcdir)/pcbtest.sh.in Makefile
