@@ -1254,6 +1254,8 @@ fill_polyarea (hidGC gc, POLYAREA * pa, const BoxType * clip_box)
 
   use_gc (gc);
 
+  if (!pa) return;
+
   pl = pa->contours;
 
   do
