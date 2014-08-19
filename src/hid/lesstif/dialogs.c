@@ -32,8 +32,8 @@ static int n;
 
 static int ok;
 
-#define COMPONENT_SIDE_NAME "(top)"
-#define SOLDER_SIDE_NAME "(bottom)"
+#define TOP_SIDE_NAME "(top)"
+#define BOTTOM_SIDE_NAME "(bottom)"
 
 /* ------------------------------------------------------------ */
 
@@ -1323,7 +1323,7 @@ static GC lg_gc = 0;
 
 #if 0
 static Widget lglabels[MAX_LAYER + 2];
-static Widget lgbuttons[MAX_LAYER + 2][MAX_LAYER];
+static Widget lgbuttons[MAX_LAYER + 2][MAX_GROUP];
 #endif
 
 typedef struct {
@@ -1389,10 +1389,10 @@ lgbutton_expose (Widget w, XtPointer u, XmDrawingAreaCallbackStruct *cbs)
       int swidth;
       const char *name;
 
-      if (i == solder_silk_layer)
-	name = SOLDER_SIDE_NAME;
-      else if (i == component_silk_layer)
-	name = COMPONENT_SIDE_NAME;
+      if (i == bottom_silk_layer)
+	name = BOTTOM_SIDE_NAME;
+      else if (i == top_silk_layer)
+	name = TOP_SIDE_NAME;
       else
 	name = PCB->Data->Layer[i].Name;
       XTextExtents (lgr.font, name, strlen(name), &dir, &lg_fa, &lg_fd, &size);
@@ -1450,7 +1450,7 @@ lgbutton_resize (Widget w, XtPointer u, XmDrawingAreaCallbackStruct *cbs)
 void
 lesstif_update_layer_groups ()
 {
-  int sets[MAX_LAYER + 2][MAX_LAYER];
+  int sets[MAX_LAYER + 2][MAX_GROUP];
   int i, j, n;
   LayerGroupType *l = &(PCB->LayerGroups);
 
@@ -1474,10 +1474,10 @@ lesstif_update_layer_groups ()
       int swidth;
       const char *name;
 
-      if (i == solder_silk_layer)
-	name = SOLDER_SIDE_NAME;
-      else if (i == component_silk_layer)
-	name = COMPONENT_SIDE_NAME;
+      if (i == bottom_silk_layer)
+	name = BOTTOM_SIDE_NAME;
+      else if (i == top_silk_layer)
+	name = TOP_SIDE_NAME;
       else
 	name = PCB->Data->Layer[i].Name;
       XTextExtents (lgr.font, name, strlen(name), &dir, &lg_fa, &lg_fd, &size);
@@ -1500,10 +1500,10 @@ lesstif_update_layer_groups ()
       n = 0;
       if (i < max_copper_layer)
 	name = PCB->Data->Layer[i].Name;
-      else if (i == solder_silk_layer)
-	name = SOLDER_SIDE_NAME;
-      else if (i == component_silk_layer)
-	name = COMPONENT_SIDE_NAME;
+      else if (i == bottom_silk_layer)
+	name = BOTTOM_SIDE_NAME;
+      else if (i == top_silk_layer)
+	name = TOP_SIDE_NAME;
       stdarg (XmNlabelString, XmStringCreatePCB (name));
       XtSetValues (lglabels[i], args, n);
       for (j = 0; j < max_group; j++)
@@ -1516,7 +1516,7 @@ lesstif_update_layer_groups ()
     }
   XtUnmanageChild(lg_buttonform);
   for (i = 0; i < MAX_LAYER + 2; i++)
-    for (j = 0; j < MAX_LAYER; j++)
+    for (j = 0; j < MAX_GROUP; j++)
       {
 	if (i < max_copper_layer + 2 && j < max_group)
 	  {
@@ -1605,7 +1605,7 @@ EditLayerGroups (int argc, char **argv, Coord x, Coord y)
 	  lglabels[i] = XmCreateLabel (layer_groups_form, "layer", args, n);
 	  XtManageChild (lglabels[i]);
 
-	  for (j = 0; j < MAX_LAYER; j++)
+	  for (j = 0; j < MAX_GROUP; j++)
 	    {
 	      n = 0;
 	      stdarg (XmNleftAttachment, XmATTACH_POSITION);

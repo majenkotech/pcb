@@ -84,7 +84,6 @@
 #include "file.h"
 #include "hid.h"
 #include "misc.h"
-#include "move.h"
 #include "mymem.h"
 #include "parse_l.h"
 #include "pcb-printf.h"
@@ -495,48 +494,6 @@ RevertPCB (void)
 }
 
 /* ---------------------------------------------------------------------------
- * functions for loading elements-as-pcb
- */
-
-extern	PCBType *		yyPCB;
-extern	DataType *		yyData;
-extern	FontType *		yyFont;
-
-void
-PreLoadElementPCB ()
-{
-
-  if (!yyPCB)
-    return;
-
-  yyFont = &yyPCB->Font;
-  yyData = yyPCB->Data;
-  yyData->pcb = yyPCB;
-  yyData->LayerN = 0;
-}
-
-void
-PostLoadElementPCB ()
-{
-  PCBType *pcb_save = PCB;
-  ElementType *e;
-
-  if (!yyPCB)
-    return;
-
-  CreateNewPCBPost (yyPCB, 0);
-  ParseGroupString("1,c:2,s", &yyPCB->LayerGroups, yyData->LayerN);
-  e = yyPCB->Data->Element->data; /* we know there's only one */
-  PCB = yyPCB;
-  MoveElementLowLevel (yyPCB->Data,
-		       e, -e->BoundingBox.X1, -e->BoundingBox.Y1);
-  PCB = pcb_save;
-  yyPCB->MaxWidth = e->BoundingBox.X2;
-  yyPCB->MaxHeight = e->BoundingBox.Y2;
-  yyPCB->is_footprint = 1;
-}
-
-/* ---------------------------------------------------------------------------
  * writes the quoted string created by another subroutine
  */
 static void
@@ -905,6 +862,10 @@ static int
 WritePCB (FILE * FP)
 {
   Cardinal i;
+  if (Settings.SaveMetricOnly)
+    set_allow_readable (ALLOW_MM);
+  else
+    set_allow_readable (ALLOW_READABLE);
 
   WritePCBInfoHeader (FP);
   WritePCBDataHeader (FP);
@@ -1104,7 +1065,7 @@ Backup (void)
 	  fprintf (stderr, "Backup():  malloc failed\n");
 	  exit (1);
 	}
-      sprintf (filename, "%s-", PCB->Filename);
+      sprintf (filename, "%s~", PCB->Filename);
     }
   else
     {

@@ -466,23 +466,25 @@ static gboolean check_object_tooltips (GHidPort *out)
   /* check if there are any pins or pads at that position */
   description = describe_location (out->crosshair_x, out->crosshair_y);
 
-  if (description == NULL)
-    return FALSE;
+  if (description != NULL)
+    {
+      gtk_widget_set_tooltip_text (out->drawing_area, description);
+      g_free (description);
+    }
 
-  gtk_widget_set_tooltip_text (out->drawing_area, description);
-  g_free (description);
-
+  out->tooltip_update_timeout_id = 0;
   return FALSE;
 }
 
-static int tooltip_update_timeout_id = 0;
 
 static void
-cancel_tooltip_update ()
+cancel_tooltip_update (GHidPort *out)
 {
-  if (tooltip_update_timeout_id)
-    g_source_remove (tooltip_update_timeout_id);
-  tooltip_update_timeout_id = 0;
+  if (out->tooltip_update_timeout_id)
+    {
+      g_source_remove (out->tooltip_update_timeout_id);
+      out->tooltip_update_timeout_id = 0;
+    }
 }
 
 /* FIXME: If the GHidPort is ever destroyed, we must call
@@ -496,9 +498,9 @@ queue_tooltip_update (GHidPort *out)
   gtk_widget_set_tooltip_text (out->drawing_area, NULL);
   gtk_widget_trigger_tooltip_query (out->drawing_area);
 
-  cancel_tooltip_update ();
+  cancel_tooltip_update (out);
 
-  tooltip_update_timeout_id =
+  out->tooltip_update_timeout_id =
       g_timeout_add (TOOLTIP_UPDATE_DELAY,
                      (GSourceFunc) check_object_tooltips,
                      out);

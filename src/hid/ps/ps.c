@@ -368,7 +368,7 @@ static struct {
   FILE *f;
   int pagecount;
   Coord linewidth;
-  bool print_group[MAX_LAYER];
+  bool print_group[MAX_GROUP];
   bool print_layer[MAX_LAYER];
   double fade_ratio;
   bool multi_file;
@@ -417,23 +417,17 @@ ps_get_export_options (int *n)
 }
 
 static int
-group_for_layer (int l)
+layer_stack_sort (const void *va, const void *vb)
 {
-  if (l < max_copper_layer + 2 && l >= 0)
-    return GetLayerGroupNumberByNumber (l);
-  /* else something unique */
-  return max_group + 3 + l;
-}
+  int a_layer = *(int *) va;
+  int b_layer = *(int *) vb;
+  int a_group = GetLayerGroupNumberByNumber (a_layer);
+  int b_group = GetLayerGroupNumberByNumber (b_layer);
 
-static int
-layer_sort (const void *va, const void *vb)
-{
-  int a = *(int *) va;
-  int b = *(int *) vb;
-  int d = group_for_layer (b) - group_for_layer (a);
-  if (d)
-    return d;
-  return b - a;
+  if (b_group != a_group)
+    return b_group - a_group;
+
+  return b_layer - a_layer;
 }
 
 void
@@ -664,14 +658,14 @@ ps_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
 	  global.outline_layer = layer;
 	}
     }
-  global.print_group[GetLayerGroupNumberByNumber (solder_silk_layer)] = 1;
-  global.print_group[GetLayerGroupNumberByNumber (component_silk_layer)] = 1;
+  global.print_group[GetLayerGroupNumberBySide (BOTTOM_SIDE)] = 1;
+  global.print_group[GetLayerGroupNumberBySide (TOP_SIDE)] = 1;
   for (i = 0; i < max_copper_layer; i++)
     if (global.print_group[GetLayerGroupNumberByNumber (i)])
       global.print_layer[i] = 1;
 
   memcpy (saved_layer_stack, LayerStack, sizeof (LayerStack));
-  qsort (LayerStack, max_copper_layer, sizeof (LayerStack[0]), layer_sort);
+  qsort (LayerStack, max_copper_layer, sizeof (LayerStack[0]), layer_stack_sort);
 
   global.linewidth = -1;
   /* reset static vars */
@@ -883,7 +877,7 @@ ps_set_layer (const char *name, int group, int empty)
 	mirror_this = !mirror_this;
       if (global.automirror
 	  &&
-	  ((idx >= 0 && group == GetLayerGroupNumberByNumber (solder_silk_layer))
+	  ((idx >= 0 && group == GetLayerGroupNumberBySide (BOTTOM_SIDE))
 	   || (idx < 0 && SL_SIDE (idx) == SL_BOTTOM_SIDE)))
 	mirror_this = !mirror_this;
 

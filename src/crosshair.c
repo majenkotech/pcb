@@ -243,7 +243,7 @@ XORDrawElement (ElementType *Element, Coord DX, Coord DY)
   PAD_LOOP (Element);
   {
     if (PCB->InvisibleObjectsOn ||
-        (TEST_FLAG (ONSOLDERFLAG, pad) != 0) == Settings.ShowSolderSide)
+        (TEST_FLAG (ONSOLDERFLAG, pad) != 0) == Settings.ShowBottomSide)
       {
         /* Make a copy of the pad structure, moved to the correct position */
         PadType moved_pad = *pad;
@@ -844,8 +844,9 @@ check_snap_offgrid_line (struct snap_data *snap_data,
   /* Pick the nearest grid-point in the x or y direction
    * to align with, then adjust until we hit the line
    */
-  ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                              LINE_TYPE, &ptr1, &ptr2, &ptr3);
+  ans = SearchObjectByLocation (LINE_TYPE, &ptr1, &ptr2, &ptr3,
+                                Crosshair.X, Crosshair.Y, PCB->Grid / 2);
+
 
   if (ans == NO_TYPE)
     return;
@@ -961,8 +962,8 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (!PCB->RatDraw)
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                ELEMENT_TYPE, &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (ELEMENT_TYPE, &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   if (ans & ELEMENT_TYPE)
     {
@@ -972,8 +973,8 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (PCB->RatDraw || TEST_FLAG (SNAPPINFLAG, PCB))
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                PAD_TYPE, &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (PAD_TYPE, &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   /* Avoid self-snapping when moving */
   if (ans != NO_TYPE &&
@@ -990,7 +991,7 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
       PadType *pad = (PadType *) ptr2;
       LayerType *desired_layer;
       Cardinal desired_group;
-      Cardinal SLayer, CLayer;
+      Cardinal bottom_group, top_group;
       int found_our_layer = false;
 
       desired_layer = CURRENT;
@@ -1000,10 +1001,10 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
           desired_layer = (LayerType *)Crosshair.AttachedObject.Ptr1;
         }
 
-      /* find layer groups of the component side and solder side */
-      SLayer = GetLayerGroupNumberByNumber (solder_silk_layer);
-      CLayer = GetLayerGroupNumberByNumber (component_silk_layer);
-      desired_group = TEST_FLAG (ONSOLDERFLAG, pad) ? SLayer : CLayer;
+      /* find layer groups of the top and bottom sides */
+      top_group = GetLayerGroupNumberBySide (TOP_SIDE);
+      bottom_group = GetLayerGroupNumberBySide (BOTTOM_SIDE);
+      desired_group = TEST_FLAG (ONSOLDERFLAG, pad) ? bottom_group : top_group;
 
       GROUP_LOOP (PCB->Data, desired_group);
       {
@@ -1029,8 +1030,8 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (PCB->RatDraw || TEST_FLAG (SNAPPINFLAG, PCB))
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                PIN_TYPE, &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (PIN_TYPE, &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   /* Avoid self-snapping when moving */
   if (ans != NO_TYPE &&
@@ -1047,8 +1048,8 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (TEST_FLAG (SNAPPINFLAG, PCB))
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                VIA_TYPE, &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (VIA_TYPE, &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   /* Avoid snapping vias to any other vias */
   if (Settings.Mode == MOVE_MODE &&
@@ -1064,9 +1065,9 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (TEST_FLAG (SNAPPINFLAG, PCB))
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                LINEPOINT_TYPE | ARCPOINT_TYPE,
-                                &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (LINEPOINT_TYPE | ARCPOINT_TYPE,
+                                  &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   if (ans != NO_TYPE)
     {
@@ -1078,8 +1079,8 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   ans = NO_TYPE;
   if (TEST_FLAG (SNAPPINFLAG, PCB))
-    ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                POLYGONPOINT_TYPE, &ptr1, &ptr2, &ptr3);
+    ans = SearchObjectByLocation (POLYGONPOINT_TYPE, &ptr1, &ptr2, &ptr3,
+                                  Crosshair.X, Crosshair.Y, PCB->Grid / 2);
 
   if (ans != NO_TYPE)
     {
@@ -1095,9 +1096,9 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 
   if (Settings.Mode == ARROW_MODE)
     {
-      ans = SearchScreenGridSlop (Crosshair.X, Crosshair.Y,
-                                  LINEPOINT_TYPE | ARCPOINT_TYPE,
-                                  &ptr1, &ptr2, &ptr3);
+      ans = SearchObjectByLocation (LINEPOINT_TYPE | ARCPOINT_TYPE,
+                                    &ptr1, &ptr2, &ptr3,
+                                    Crosshair.X, Crosshair.Y, PCB->Grid / 2);
       if (ans == NO_TYPE)
         hid_action("PointCursor");
       else if (!TEST_FLAG(SELECTEDFLAG, (LineType *)ptr2))
@@ -1113,41 +1114,34 @@ FitCrosshairIntoGrid (Coord X, Coord Y)
 }
 
 /* ---------------------------------------------------------------------------
- * move crosshair relative (has to be switched off)
- */
-void
-MoveCrosshairRelative (Coord DeltaX, Coord DeltaY)
-{
-  FitCrosshairIntoGrid (Crosshair.X + DeltaX, Crosshair.Y + DeltaY);
-}
-
-/* ---------------------------------------------------------------------------
  * move crosshair absolute
  * return true if the crosshair was moved from its existing position
  */
 bool
 MoveCrosshairAbsolute (Coord X, Coord Y)
 {
-  Coord x, y, z;
-  x = Crosshair.X;
-  y = Crosshair.Y;
+  Coord old_x = Crosshair.X;
+  Coord old_y = Crosshair.Y;
+
   FitCrosshairIntoGrid (X, Y);
-  if (Crosshair.X != x || Crosshair.Y != y)
+
+  if (Crosshair.X != old_x || Crosshair.Y != old_y)
     {
+      Coord new_x = Crosshair.X;
+      Coord new_y = Crosshair.Y;
+
       /* back up to old position to notify the GUI
        * (which might want to erase the old crosshair) */
-      z = Crosshair.X;
-      Crosshair.X = x;
-      x = z;
-      z = Crosshair.Y;
-      Crosshair.Y = y;
+      Crosshair.X = old_x;
+      Crosshair.Y = old_y;
       notify_crosshair_change (false); /* Our caller notifies when it has done */
+
       /* now move forward again */
-      Crosshair.X = x;
-      Crosshair.Y = z;
-      return (true);
+      Crosshair.X = new_x;
+      Crosshair.Y = new_y;
+      return true;
     }
-  return (false);
+  return false;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1162,7 +1156,7 @@ SetCrosshairRange (Coord MinX, Coord MinY, Coord MaxX, Coord MaxY)
   Crosshair.MaxY = MIN (PCB->MaxHeight, MaxY);
 
   /* force update of position */
-  MoveCrosshairRelative (0, 0);
+  FitCrosshairIntoGrid (Crosshair.X, Crosshair.Y);
 }
 
 /* ---------------------------------------------------------------------------

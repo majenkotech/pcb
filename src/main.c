@@ -1500,6 +1500,16 @@ If set, all data which would otherwise be lost are saved in a temporary file
   BSET (SaveInTMP, 0, "save-in-tmp",
        "When set, all data which would otherwise be lost are saved in /tmp"),
 
+/* %start-doc options "1 General Options"
+@ftable @code
+@item --save-metric-only
+If set, save pcb files using only mm unit suffix rather than 'smart' mil/mm.
+@end ftable
+%end-doc
+*/
+  BSET (SaveMetricOnly, 0, "save-metric-only",
+        "If set, save pcb files using only mm unit suffix rather than 'smart' mil/mm."),
+
 /* %start-doc options "2 General GUI Options"
 @ftable @code
 @item --all-direction-lines
@@ -1972,8 +1982,7 @@ main (int argc, char *argv[])
 
   /* Create a new PCB object in memory */
   PCB = CreateNewPCB (true);
-  PCB->Data->LayerN = DEF_LAYER;
-  ParseGroupString (Settings.Groups, &PCB->LayerGroups, DEF_LAYER);
+  ParseGroupString (Settings.Groups, &PCB->LayerGroups, &PCB->Data->LayerN);
   /* Add silk layers to newly created PCB */
   CreateNewPCBPost (PCB, 1);
   if (argc > 1)

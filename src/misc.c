@@ -987,12 +987,53 @@ error:
  * comma separated layer numbers (1,2,b:4,6,8,t)
  */
 int
-ParseGroupString (char *s, LayerGroupType *LayerGroup, int LayerN)
+ParseGroupString (char *group_string, LayerGroupType *LayerGroup, int *LayerN)
 {
+  char *s;
   int group, member, layer;
   bool c_set = false,        /* flags for the two special layers to */
     s_set = false;              /* provide a default setting for old formats */
   int groupnum[MAX_LAYER + 2];
+
+  *LayerN = 0;
+
+  /* Deterimine the maximum layer number */
+  for (s = group_string; s && *s; s++)
+    {
+      while (*s && isspace ((int) *s))
+        s++;
+
+      switch (*s)
+        {
+        case 'c':
+        case 'C':
+        case 't':
+        case 'T':
+        case 's':
+        case 'S':
+        case 'b':
+        case 'B':
+          break;
+
+        default:
+          if (!isdigit ((int) *s))
+            goto error;
+          *LayerN = MAX (*LayerN, atoi (s));
+          break;
+        }
+
+      while (*++s && isdigit ((int) *s));
+
+      /* ignore white spaces and check for separator */
+      while (*s && isspace ((int) *s))
+        s++;
+
+      if (*s == '\0')
+        break;
+
+      if (*s != ':' && *s != ',')
+        goto error;
+    }
 
   /* clear struct */
   memset (LayerGroup, 0, sizeof (LayerGroupType));
@@ -1002,7 +1043,9 @@ ParseGroupString (char *s, LayerGroupType *LayerGroup, int LayerN)
     groupnum[layer] = -1;
 
   /* loop over all groups */
-  for (group = 0; s && *s && group < LayerN; group++)
+  for (s = group_string, group = 0;
+       s && *s && group < *LayerN;
+       group++)
     {
       while (*s && isspace ((int) *s))
         s++;
@@ -1019,7 +1062,7 @@ ParseGroupString (char *s, LayerGroupType *LayerGroup, int LayerN)
             case 'C':
             case 't':
             case 'T':
-              layer = LayerN + COMPONENT_LAYER;
+              layer = *LayerN + TOP_SILK_LAYER;
               c_set = true;
               break;
 
@@ -1027,18 +1070,16 @@ ParseGroupString (char *s, LayerGroupType *LayerGroup, int LayerN)
             case 'S':
             case 'b':
             case 'B':
-              layer = LayerN + SOLDER_LAYER;
+              layer = *LayerN + BOTTOM_SILK_LAYER;
               s_set = true;
               break;
 
             default:
-              if (!isdigit ((int) *s))
-                goto error;
               layer = atoi (s) - 1;
               break;
             }
-          if (layer > LayerN + MAX (SOLDER_LAYER, COMPONENT_LAYER) ||
-              member >= LayerN + 1)
+          if (layer > *LayerN + MAX (BOTTOM_SILK_LAYER, TOP_SILK_LAYER) ||
+              member >= *LayerN + 1)
             goto error;
           groupnum[layer] = group;
           LayerGroup->Entries[group][member++] = layer;
@@ -1049,22 +1090,25 @@ ParseGroupString (char *s, LayerGroupType *LayerGroup, int LayerN)
             s++;
           if (!*s || *s == ':')
             break;
-          if (*s != ',')
-            goto error;
         }
       LayerGroup->Number[group] = member;
       if (*s == ':')
         s++;
     }
-  if (!s_set)
-    LayerGroup->Entries[SOLDER_LAYER][LayerGroup->Number[SOLDER_LAYER]++] =
-      LayerN + SOLDER_LAYER;
-  if (!c_set)
-    LayerGroup->
-      Entries[COMPONENT_LAYER][LayerGroup->Number[COMPONENT_LAYER]++] =
-      LayerN + COMPONENT_LAYER;
 
-  for (layer = 0; layer < LayerN && group < LayerN; layer++)
+  /* If no explicit solder or component layer group was found in the layer
+   * group string, make group 0 the bottom side, and group 1 the top side.
+   * This is done by assigning the relevant silkscreen layers to those groups.
+   */
+  if (!s_set)
+    LayerGroup->Entries[0][LayerGroup->Number[0]++] = *LayerN + BOTTOM_SILK_LAYER;
+  if (!c_set)
+    LayerGroup->Entries[1][LayerGroup->Number[1]++] = *LayerN + TOP_SILK_LAYER;
+
+  /* Assign a unique layer group to each layer that was not explicitly
+   * assigned a particular group by its presence in the layer group string.
+   */
+  for (layer = 0; layer < *LayerN && group < *LayerN; layer++)
     if (groupnum[layer] == -1)
       {
         LayerGroup->Entries[group][0] = layer;
@@ -1224,7 +1268,7 @@ PushOnTopOfLayerStack (int NewTop)
 {
   int i;
 
-  /* ignore silk layers */
+  /* ignore silk and other extra layers */
   if (NewTop < max_copper_layer)
     {
       /* first find position of passed one */
@@ -1258,22 +1302,22 @@ ChangeGroupVisibility (int Layer, bool On, bool ChangeStackOrder)
             Layer, On, ChangeStackOrder);
 
   /* decrement 'i' to keep stack in order of layergroup */
-  if ((group = GetGroupOfLayer (Layer)) < max_group)
-    for (i = PCB->LayerGroups.Number[group]; i;)
-      {
-        int layer = PCB->LayerGroups.Entries[group][--i];
+  group = GetLayerGroupNumberByNumber (Layer);
+  for (i = PCB->LayerGroups.Number[group]; i;)
+    {
+      int layer = PCB->LayerGroups.Entries[group][--i];
 
-        /* don't count the passed member of the group */
-        if (layer != Layer && layer < max_copper_layer)
-          {
-            PCB->Data->Layer[layer].On = On;
+      /* don't count the passed member of the group */
+      if (layer != Layer && layer < max_copper_layer)
+        {
+          PCB->Data->Layer[layer].On = On;
 
-            /* push layer on top of stack if switched on */
-            if (On && ChangeStackOrder)
-              PushOnTopOfLayerStack (layer);
-            changed++;
-          }
-      }
+          /* push layer on top of stack if switched on */
+          if (On && ChangeStackOrder)
+            PushOnTopOfLayerStack (layer);
+          changed++;
+        }
+    }
 
   /* change at least the passed layer */
   PCB->Data->Layer[Layer].On = On;
@@ -1335,7 +1379,7 @@ LayerStringToLayerStack (char *s)
   PCB->ViaOn = false;
   PCB->RatOn = false;
   CLEAR_FLAG (SHOWMASKFLAG, PCB);
-  Settings.ShowSolderSide = 0;
+  Settings.ShowBottomSide = 0;
 
   for (i=argn-1; i>=0; i--)
     {
@@ -1353,7 +1397,7 @@ LayerStringToLayerStack (char *s)
       else if (strcasecmp (args[i], "mask") == 0)
 	SET_FLAG (SHOWMASKFLAG, PCB);
       else if (strcasecmp (args[i], "solderside") == 0)
-	Settings.ShowSolderSide = 1;
+	Settings.ShowBottomSide = 1;
       else if (isdigit ((int) args[i][0]))
 	{
 	  lno = atoi (args[i]);
@@ -1386,26 +1430,6 @@ LayerStringToLayerStack (char *s)
     }
 }
 
-/* ----------------------------------------------------------------------
- * lookup the group to which a layer belongs to
- * returns max_group if no group is found, or is
- * passed Layer is equal to max_copper_layer
- */
-int
-GetGroupOfLayer (int Layer)
-{
-  int group, i;
-
-  if (Layer == max_copper_layer)
-    return max_group;
-  for (group = 0; group < max_group; group++)
-    for (i = 0; i < PCB->LayerGroups.Number[group]; i++)
-      if (PCB->LayerGroups.Entries[group][i] == Layer)
-        return (group);
-  return max_group;
-}
-
-
 /* ---------------------------------------------------------------------------
  * returns the layergroup number for the passed pointer
  */
@@ -1432,6 +1456,19 @@ GetLayerGroupNumberByNumber (Cardinal Layer)
    * the value without boundary checking
    */
   return (group);
+}
+
+/* ---------------------------------------------------------------------------
+ * returns the layergroup number for the passed side (TOP_LAYER or BOTTOM_LAYER)
+ */
+int
+GetLayerGroupNumberBySide (int side)
+{
+  /* Find the relavant board side layer group by determining the
+   * layer group associated with the relevant side's silk-screen
+   */
+  return GetLayerGroupNumberByNumber(
+      side == TOP_SIDE ? top_silk_layer : bottom_silk_layer);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1541,7 +1578,7 @@ SetArcBoundingBox (ArcType *Arc)
 void
 ResetStackAndVisibility (void)
 {
-  int comp_group;
+  int top_group;
   Cardinal i;
 
   for (i = 0; i < max_copper_layer + 2; i++)
@@ -1557,8 +1594,8 @@ ResetStackAndVisibility (void)
   PCB->RatOn = true;
 
   /* Bring the component group to the front and make it active.  */
-  comp_group = GetLayerGroupNumberByNumber (component_silk_layer);
-  ChangeGroupVisibility (PCB->LayerGroups.Entries[comp_group][0], 1, 1);
+  top_group = GetLayerGroupNumberBySide (TOP_SIDE);
+  ChangeGroupVisibility (PCB->LayerGroups.Entries[top_group][0], 1, 1);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1961,10 +1998,10 @@ MoveLayerToGroup (int layer, int group)
   if (layer < 0 || layer > max_copper_layer + 1)
     return -1;
   prev = GetLayerGroupNumberByNumber (layer);
-  if ((layer == solder_silk_layer
-        && group == GetLayerGroupNumberByNumber (component_silk_layer))
-      || (layer == component_silk_layer
-          && group == GetLayerGroupNumberByNumber (solder_silk_layer))
+  if ((layer == bottom_silk_layer
+        && group == GetLayerGroupNumberByNumber (top_silk_layer))
+      || (layer == top_silk_layer
+          && group == GetLayerGroupNumberByNumber (bottom_silk_layer))
       || (group < 0 || group >= max_group) || (prev == group))
     return prev;
 
@@ -2000,11 +2037,11 @@ LayerGroupsToString (LayerGroupType *lg)
         for (entry = 0; entry < PCB->LayerGroups.Number[group]; entry++)
           {
             int layer = PCB->LayerGroups.Entries[group][entry];
-            if (layer == component_silk_layer)
+            if (layer == top_silk_layer)
               {
                 *cp++ = 'c';
               }
-            else if (layer == solder_silk_layer)
+            else if (layer == bottom_silk_layer)
               {
                 *cp++ = 's';
               }

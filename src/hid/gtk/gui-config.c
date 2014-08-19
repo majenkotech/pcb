@@ -121,6 +121,7 @@ static ConfigAttribute config_attributes[] = {
   {"gui-compact-vertical", CONFIG_Boolean, &_ghidgui.compact_vertical},
   {"use-command-window", CONFIG_Boolean, &_ghidgui.use_command_window},
   {"save-in-tmp", CONFIG_Unused, NULL},
+  {"save-metric-only", CONFIG_Unused, NULL},
   {"grid-units", CONFIG_Unused, NULL},
   {"grid", CONFIG_Unused, NULL},
 
@@ -925,6 +926,11 @@ config_general_tab_create (GtkWidget * tab_vbox)
 		    5.0, 25.0, 1.0, 1.0, 0, 0,
 		    config_history_spin_button_cb, NULL, FALSE,
 		    _("Number of commands to remember in the history list"));
+
+  ghid_check_button_connected (vbox, NULL, Settings.SaveMetricOnly,
+			       TRUE, FALSE, FALSE, 2,
+			       config_general_toggle_cb, &Settings.SaveMetricOnly,
+			       _("Use only metric units when saving pcb files"));
 }
 
 
@@ -1265,7 +1271,7 @@ config_library_tab_create (GtkWidget * tab_vbox)
 static GtkWidget	*config_groups_table, *config_groups_vbox, *config_groups_window;
 
 static GtkWidget *layer_entry[MAX_LAYER];
-static GtkWidget *group_button[MAX_LAYER + 2][MAX_LAYER];
+static GtkWidget *group_button[MAX_LAYER + 2][MAX_GROUP];
 
 #if FIXME
 static GtkWidget *use_layer_default_button;
@@ -1363,9 +1369,9 @@ make_layer_group_string (LayerGroupType * lg)
       for (entry = 0; entry < lg->Number[group]; entry++)
 	{
 	  layer = lg->Entries[group][entry];
-	  if (layer == component_silk_layer)
+	  if (layer == top_silk_layer)
 	    string = g_string_append (string, "c");
-	  else if (layer == solder_silk_layer)
+	  else if (layer == bottom_silk_layer)
 	    string = g_string_append (string, "s");
 	  else
 	    g_string_append_printf (string, "%d", layer + 1);
@@ -1385,7 +1391,7 @@ config_layers_apply (void)
   LayerType *layer;
   gchar *s;
   gint group, i;
-  gint componentgroup = 0, soldergroup = 0;
+  gint top_group = 0, bottom_group = 0;
   gboolean use_as_default = FALSE, layers_modified = FALSE;
 
 #if FIXME
@@ -1428,25 +1434,25 @@ config_layers_apply (void)
 	  group = config_layer_group[i] - 1;
 	  layer_groups.Entries[group][layer_groups.Number[group]++] = i;
 
-	  if (i == component_silk_layer)
-	    componentgroup = group;
-	  else if (i == solder_silk_layer)
-	    soldergroup = group;
+	  if (i == top_silk_layer)
+	    top_group = group;
+	  else if (i == bottom_silk_layer)
+	    bottom_group = group;
 	}
 
       /* do some cross-checking
          |  top-side and bottom-side must be in different groups
          |  top-side and bottom-side must not be the only one in the group
        */
-      if (layer_groups.Number[soldergroup] <= 1
-	  || layer_groups.Number[componentgroup] <= 1)
+      if (layer_groups.Number[bottom_group] <= 1
+	  || layer_groups.Number[top_group] <= 1)
 	{
 	  Message (_
 		   ("Both, 'top side' and 'bottom side' layer must have at least\n"
 		    "\tone other layer in their group.\n"));
 	  return;
 	}
-      else if (soldergroup == componentgroup)
+      else if (bottom_group == top_group)
 	{
 	  Message (_
 		   ("The 'top side' and 'bottom side' layers are not allowed\n"
@@ -1462,7 +1468,7 @@ config_layers_apply (void)
       s = make_layer_group_string (&PCB->LayerGroups);
       if (dup_core_string (&Settings.Groups, s))
 	{
-	  ParseGroupString (Settings.Groups, &Settings.LayerGroups, max_copper_layer);
+	  ParseGroupString (Settings.Groups, &Settings.LayerGroups, &max_copper_layer);
 	  ghidgui->config_modified = TRUE;
 	}
       g_free (s);
@@ -1559,9 +1565,9 @@ ghid_config_groups_changed(void)
    */
   for (layer = 0; layer < max_copper_layer + 2; ++layer)
     {
-      if (layer == component_silk_layer)
+      if (layer == top_silk_layer)
 	name = _("top side");
-      else if (layer == solder_silk_layer)
+      else if (layer == bottom_silk_layer)
 	name = _("bottom side");
       else
 	name = (gchar *) UNKNOWN (PCB->Data->Layer[layer].Name);

@@ -520,7 +520,7 @@ element_callback (const BoxType * b, void *cl)
 void
 PrintAssembly (int side, const BoxType * drawn_area)
 {
-  int side_group = GetLayerGroupNumberByNumber (max_copper_layer + side);
+  int side_group = GetLayerGroupNumberBySide (side);
 
   doing_assy = true;
   gui->graphics->set_draw_faded (Output.fgGC, 1);
@@ -539,11 +539,11 @@ static void
 DrawEverything (const BoxType *drawn_area)
 {
   int i, ngroups, side;
-  int component, solder;
+  int top_group, bottom_group;
   /* This is the list of layer groups we will draw.  */
-  int do_group[MAX_LAYER];
+  int do_group[MAX_GROUP];
   /* This is the reverse of the order in which we draw them.  */
-  int drawn_groups[MAX_LAYER];
+  int drawn_groups[MAX_GROUP];
   int plated, unplated;
   bool paste_empty;
 
@@ -562,8 +562,8 @@ DrawEverything (const BoxType *drawn_area)
 	}
     }
 
-  component = GetLayerGroupNumberByNumber (component_silk_layer);
-  solder = GetLayerGroupNumberByNumber (solder_silk_layer);
+  top_group = GetLayerGroupNumberBySide (TOP_SIDE);
+  bottom_group = GetLayerGroupNumberBySide (BOTTOM_SIDE);
 
   /*
    * first draw all 'invisible' stuff
@@ -571,7 +571,7 @@ DrawEverything (const BoxType *drawn_area)
   if (!TEST_FLAG (CHECKPLANESFLAG, PCB)
       && gui->set_layer ("invisible", SL (INVISIBLE, 0), 0))
     {
-      side = SWAP_IDENT ? COMPONENT_LAYER : SOLDER_LAYER;
+      side = SWAP_IDENT ? TOP_SIDE : BOTTOM_SIDE;
       if (PCB->ElementOn)
 	{
 	  r_search (PCB->Data->element_tree, drawn_area, NULL, element_callback, &side);
@@ -599,7 +599,7 @@ DrawEverything (const BoxType *drawn_area)
 
   /* Draw pins, pads, vias below silk */
   if (gui->gui)
-    DrawPPV (SWAP_IDENT ? solder : component, drawn_area);
+    DrawPPV (SWAP_IDENT ? bottom_group : top_group, drawn_area);
   else
     {
       CountHoles (&plated, &unplated, drawn_area);
@@ -620,25 +620,25 @@ DrawEverything (const BoxType *drawn_area)
   /* Draw the solder mask if turned on */
   if (gui->set_layer ("componentmask", SL (MASK, TOP), 0))
     {
-      DrawMask (COMPONENT_LAYER, drawn_area);
+      DrawMask (TOP_SIDE, drawn_area);
       gui->end_layer ();
     }
 
   if (gui->set_layer ("soldermask", SL (MASK, BOTTOM), 0))
     {
-      DrawMask (SOLDER_LAYER, drawn_area);
+      DrawMask (BOTTOM_SIDE, drawn_area);
       gui->end_layer ();
     }
 
   if (gui->set_layer ("topsilk", SL (SILK, TOP), 0))
     {
-      DrawSilk (COMPONENT_LAYER, drawn_area);
+      DrawSilk (TOP_SIDE, drawn_area);
       gui->end_layer ();
     }
 
   if (gui->set_layer ("bottomsilk", SL (SILK, BOTTOM), 0))
     {
-      DrawSilk (SOLDER_LAYER, drawn_area);
+      DrawSilk (BOTTOM_SIDE, drawn_area);
       gui->end_layer ();
     }
 
@@ -656,29 +656,29 @@ DrawEverything (const BoxType *drawn_area)
         }
     }
 
-  paste_empty = IsPasteEmpty (COMPONENT_LAYER);
+  paste_empty = IsPasteEmpty (TOP_SIDE);
   if (gui->set_layer ("toppaste", SL (PASTE, TOP), paste_empty))
     {
-      DrawPaste (COMPONENT_LAYER, drawn_area);
+      DrawPaste (TOP_SIDE, drawn_area);
       gui->end_layer ();
     }
 
-  paste_empty = IsPasteEmpty (SOLDER_LAYER);
+  paste_empty = IsPasteEmpty (BOTTOM_SIDE);
   if (gui->set_layer ("bottompaste", SL (PASTE, BOTTOM), paste_empty))
     {
-      DrawPaste (SOLDER_LAYER, drawn_area);
+      DrawPaste (BOTTOM_SIDE, drawn_area);
       gui->end_layer ();
     }
 
   if (gui->set_layer ("topassembly", SL (ASSY, TOP), 0))
     {
-      PrintAssembly (COMPONENT_LAYER, drawn_area);
+      PrintAssembly (TOP_SIDE, drawn_area);
       gui->end_layer ();
     }
 
   if (gui->set_layer ("bottomassembly", SL (ASSY, BOTTOM), 0))
     {
-      PrintAssembly (SOLDER_LAYER, drawn_area);
+      PrintAssembly (BOTTOM_SIDE, drawn_area);
       gui->end_layer ();
     }
 
@@ -739,8 +739,8 @@ DrawEMark (ElementType *e, Coord X, Coord Y, bool invisible)
 static void
 DrawPPV (int group, const BoxType *drawn_area)
 {
-  int component_group = GetLayerGroupNumberByNumber (component_silk_layer);
-  int solder_group = GetLayerGroupNumberByNumber (solder_silk_layer);
+  int top_group = GetLayerGroupNumberBySide (TOP_SIDE);
+  int bottom_group = GetLayerGroupNumberBySide (BOTTOM_SIDE);
   int side;
 
   if (PCB->PinOn || !gui->gui)
@@ -749,15 +749,15 @@ DrawPPV (int group, const BoxType *drawn_area)
       r_search (PCB->Data->pin_tree, drawn_area, NULL, pin_callback, NULL);
 
       /* draw element pads */
-      if (group == component_group)
+      if (group == top_group)
         {
-          side = COMPONENT_LAYER;
+          side = TOP_SIDE;
           r_search (PCB->Data->pad_tree, drawn_area, NULL, pad_callback, &side);
         }
 
-      if (group == solder_group)
+      if (group == bottom_group)
         {
-          side = SOLDER_LAYER;
+          side = BOTTOM_SIDE;
           r_search (PCB->Data->pad_tree, drawn_area, NULL, pad_callback, &side);
         }
     }

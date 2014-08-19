@@ -54,6 +54,7 @@
 #include "rtree.h"
 #include "strflags.h"
 #include "thermal.h"
+#include "move.h"
 
 #ifdef HAVE_LIBDMALLOC
 # include <dmalloc.h> /* see http://dmalloc.com */
@@ -73,8 +74,6 @@ extern	ElementType	*yyElement;
 extern	FontType	*yyFont;
 extern	int		yylineno;		/* linenumber */
 extern	char		*yyfilename;	/* in this file */
-
-static char *layer_group_string; 
 
 static AttributeListType *attr_list; 
 
@@ -175,7 +174,12 @@ parsepcb
 				yyData = yyPCB->Data;
 				yyData->pcb = yyPCB;
 				yyData->LayerN = 0;
-				layer_group_string = NULL;
+				/* Parse the default layer group string, just in case the file doesn't have one */
+				if (ParseGroupString (Settings.Groups, &yyPCB->LayerGroups, &yyData->LayerN))
+				    {
+				      Message(_("illegal default layer-group string\n"));
+				      YYABORT;
+				    }
 			}
 		  pcbfileversion
 		  pcbname 
@@ -193,14 +197,7 @@ parsepcb
 			{
 			  PCBType *pcb_save = PCB;
 
-			  if (layer_group_string == NULL)
-			    layer_group_string = Settings.Groups;
 			  CreateNewPCBPost (yyPCB, 0);
-			  if (ParseGroupString(layer_group_string, &yyPCB->LayerGroups, yyData->LayerN))
-			    {
-			      Message(_("illegal layer-group string\n"));
-			      YYABORT;
-			    }
 			/* initialize the polygon clipping now since
 			 * we didn't know the layer grouping before.
 			 */
@@ -213,13 +210,33 @@ parsepcb
 			PCB = pcb_save;
 			}
 			   
-		| { PreLoadElementPCB ();
-		    layer_group_string = NULL; }
+		| {
+		    if (yyPCB != NULL)
+		      {
+			/* This case is when we load a footprint with file->open, or from the command line */
+			yyFont = &yyPCB->Font;
+			yyData = yyPCB->Data;
+			yyData->pcb = yyPCB;
+			yyData->LayerN = 0;
+		      }
+		  }
 		  element
-		  { LayerFlag[0] = true;
-		    LayerFlag[1] = true;
-		    yyData->LayerN = 2;
-		    PostLoadElementPCB ();
+		  {
+		    PCBType *pcb_save = PCB;
+		    ElementType *e;
+		    if (yyPCB != NULL)
+		      {
+			/* This case is when we load a footprint with file->open, or from the command line */
+			CreateNewPCBPost (yyPCB, 0);
+			ParseGroupString("1,c:2,s", &yyPCB->LayerGroups, &yyData->LayerN);
+			e = yyPCB->Data->Element->data; /* we know there's only one */
+			PCB = yyPCB;
+			MoveElementLowLevel (yyPCB->Data, e, -e->BoundingBox.X1, -e->BoundingBox.Y1);
+			PCB = pcb_save;
+			yyPCB->MaxWidth = e->BoundingBox.X2;
+			yyPCB->MaxHeight = e->BoundingBox.Y2;
+			yyPCB->is_footprint = 1;
+		      }
 		  }
 		;
 
@@ -604,7 +621,11 @@ Groups("1,2,c:3:4:5,6,s:7,8")
 pcbgroups
 		: T_GROUPS '(' STRING ')'
 			{
-			  layer_group_string = $3;
+			  if (ParseGroupString ($3, &yyPCB->LayerGroups, &yyData->LayerN))
+			    {
+			      Message(_("illegal layer-group string\n"));
+			      YYABORT;
+			    }
 			}
 		|
 		;
@@ -861,8 +882,6 @@ layer
                          	if (Layer->Name == NULL)
                                    Layer->Name = strdup("");
 				LayerFlag[$3-1] = true;
-				if (yyData->LayerN + 2 < $3)
-				  yyData->LayerN = $3 - 2;
 			}
 		  layerdata ')'
 		;
@@ -1060,7 +1079,7 @@ text_newformat
 				if ($8 & ONSILKFLAG)
 				{
 					LayerType *lay = &yyData->Layer[yyData->LayerN +
-						(($8 & ONSOLDERFLAG) ? SOLDER_LAYER : COMPONENT_LAYER)];
+						(($8 & ONSOLDERFLAG) ? BOTTOM_SILK_LAYER : TOP_SILK_LAYER)];
 
 					CreateNewText(lay ,yyFont, OU ($3), OU ($4), $5, $6, $7,
 						      OldFlags($8));
@@ -1085,7 +1104,7 @@ text_hi_format
 				if ($8.f & ONSILKFLAG)
 				{
 					LayerType *lay = &yyData->Layer[yyData->LayerN +
-						(($8.f & ONSOLDERFLAG) ? SOLDER_LAYER : COMPONENT_LAYER)];
+						(($8.f & ONSOLDERFLAG) ? BOTTOM_SILK_LAYER : TOP_SILK_LAYER)];
 
 					CreateNewText(lay, yyFont, NU ($3), NU ($4), $5, $6, $7, $8);
 				}

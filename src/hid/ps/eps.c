@@ -66,7 +66,7 @@ static FILE *f = 0;
 static Coord linewidth = -1;
 static int lastcap = -1;
 static int lastcolor = -1;
-static int print_group[MAX_LAYER];
+static int print_group[MAX_GROUP];
 static int print_layer[MAX_LAYER];
 static int fast_erase = -1;
 
@@ -149,36 +149,25 @@ eps_get_export_options (int *n)
   return eps_attribute_list;
 }
 
-static int comp_layer, solder_layer;
+static int top_group, bottom_group;
 
 static int
-group_for_layer (int l)
+layer_stack_sort (const void *va, const void *vb)
 {
-  if (l < max_copper_layer + 2 && l >= 0)
-    return GetLayerGroupNumberByNumber (l);
-  /* else something unique */
-  return max_group + 3 + l;
-}
+  int a_layer = *(int *) va;
+  int b_layer = *(int *) vb;
+  int a_group = GetLayerGroupNumberByNumber (a_layer);
+  int b_group = GetLayerGroupNumberByNumber (b_layer);
+  int aside = (a_group == bottom_group ? 0 : a_group == top_group ? 2 : 1);
+  int bside = (b_group == bottom_group ? 0 : b_group == top_group ? 2 : 1);
 
-static int
-layer_sort (const void *va, const void *vb)
-{
-  int a = *(int *) va;
-  int b = *(int *) vb;
-  int al = group_for_layer (a);
-  int bl = group_for_layer (b);
-  int d = bl - al;
+  if (bside != aside)
+    return bside - aside;
 
-  if (a >= 0 && a <= max_copper_layer + 1)
-    {
-      int aside = (al == solder_layer ? 0 : al == comp_layer ? 2 : 1);
-      int bside = (bl == solder_layer ? 0 : bl == comp_layer ? 2 : 1);
-      if (bside != aside)
-	return bside - aside;
-    }
-  if (d)
-    return d;
-  return b - a;
+  if (b_group != a_group)
+    return b_group - a_group;
+
+  return b_layer - a_layer;
 }
 
 static const char *filename;
@@ -234,7 +223,7 @@ eps_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
      layer to get the pins.  */
   if (fast_erase == 0)
     {
-      print_group[GetLayerGroupNumberByNumber (component_silk_layer)] = 1;
+      print_group[GetLayerGroupNumberBySide (TOP_SIDE)] = 1;
       fast_erase = 1;
     }
 
@@ -259,9 +248,9 @@ eps_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
   as_shown = options[HA_as_shown].int_value;
   if (!options[HA_as_shown].int_value)
     {
-      comp_layer = GetLayerGroupNumberByNumber (component_silk_layer);
-      solder_layer = GetLayerGroupNumberByNumber (solder_silk_layer);
-      qsort (LayerStack, max_copper_layer, sizeof (LayerStack[0]), layer_sort);
+      top_group = GetLayerGroupNumberBySide (TOP_SIDE);
+      bottom_group = GetLayerGroupNumberBySide (BOTTOM_SIDE);
+      qsort (LayerStack, max_copper_layer, sizeof (LayerStack[0]), layer_stack_sort);
     }
   fprintf (f, "%%!PS-Adobe-3.0 EPSF-3.0\n");
   linewidth = -1;
@@ -289,7 +278,7 @@ eps_hid_export_to_file (FILE * the_file, HID_Attr_Val * options)
   fprintf (f, "1 dup neg scale\n");
   fprintf (f, "%g dup scale\n", options[HA_scale].real_value);
   pcb_fprintf (f, "%mi %mi translate\n", -bounds->X1, -bounds->Y2);
-  if (options[HA_as_shown].int_value && Settings.ShowSolderSide)
+  if (options[HA_as_shown].int_value && Settings.ShowBottomSide)
     pcb_fprintf (f, "-1 1 scale %mi 0 translate\n", bounds->X1 - bounds->X2);
   linewidth = -1;
   lastcap = -1;
