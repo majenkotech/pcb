@@ -487,11 +487,11 @@ typedef enum
 
     /* Request permission for debug drawing
      *
-     * Returns a HID pointer which should be used rather than the global
-     * gui-> for making drawing calls. If the return value is NULL, then
-     * permission has been denied, and the drawing must not continue.
+     * Returns a HID_DRAW pointer which should be used rather than the global
+     * gui->graphics-> for making drawing calls. If the return value is NULL,
+     * then permission has been denied, and the drawing must not continue.
      */
-    HID *(*request_debug_draw) (void);
+    HID_DRAW *(*request_debug_draw) (void);
 
     /* Flush pending drawing to the screen
      *
@@ -554,7 +554,6 @@ typedef enum
 
    Do *not* assume that the hid that is passed is the GUI hid.  This
    callback is also used for printing and exporting. */
-  struct BoxType;
   void hid_expose_callback (HID * hid_, struct BoxType *region_, void *item_);
 
 /* This is initially set to a "no-gui" gui, and later reset by

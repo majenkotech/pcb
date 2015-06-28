@@ -78,7 +78,7 @@ static Pixmap pixmap = 0;
 static Pixmap main_pixmap = 0;
 static Pixmap mask_pixmap = 0;
 static Pixmap mask_bitmap = 0;
-static int use_mask = 0;
+static enum mask_mode use_mask = HID_MASK_OFF;
 
 static int use_xrender = 0;
 #ifdef HAVE_XRENDER
@@ -98,6 +98,8 @@ static Pixel bgcolor, offlimit_color, grid_color;
 static int bgred, bggreen, bgblue;
 
 static GC arc1_gc, arc2_gc;
+
+static hidGC crosshair_gc;
 
 /* These are for the pinout windows. */
 typedef struct PinoutData
@@ -140,6 +142,11 @@ static double view_zoom = MIL_TO_COORD (10), prev_view_zoom = MIL_TO_COORD (10);
 static bool flip_x = 0, flip_y = 0;
 static bool autofade = 0;
 static bool crosshair_on = true;
+
+/* ---------------------------------------------------------------------------
+ * some local prototypes
+ */
+static hidGC lesstif_make_gc (void);
 
 static void
 ShowCrosshair (bool show)
@@ -233,7 +240,7 @@ Location of the @file{pcb-menu.res} file which defines the menu for the lesstif 
 
 REGISTER_ATTRIBUTES (lesstif_attribute_list)
 
-static void lesstif_use_mask (int use_it);
+static void lesstif_use_mask (enum mask_mode mode);
 static void zoom_max ();
 static void zoom_to (double factor, int x, int y);
 static void zoom_by (double factor, int x, int y);
@@ -717,12 +724,11 @@ command_event_handler (Widget w, XtPointer p, XEvent * e, Boolean * cont)
 {
   char buf[10];
   KeySym sym;
-  int slen;
 
   switch (e->type)
     {
     case KeyPress:
-      slen = XLookupString ((XKeyEvent *)e, buf, sizeof (buf), &sym, NULL);
+      XLookupString ((XKeyEvent *)e, buf, sizeof (buf), &sym, NULL);
       switch (sym)
 	{
 	case XK_Escape:
@@ -1361,7 +1367,6 @@ static void
 work_area_input (Widget w, XtPointer v, XEvent * e, Boolean * ctd)
 {
   static int pressed_button = 0;
-  static int ignore_release = 0;
 
   show_crosshair (0);
   switch (e->type)
@@ -1383,11 +1388,7 @@ work_area_input (Widget w, XtPointer v, XEvent * e, Boolean * ctd)
           return;
         /*printf("click %d\n", e->xbutton.button); */
         if (lesstif_button_event (w, e))
-	{
-	  ignore_release = 1;
-	  return;
-	}
-        ignore_release = 0;
+          return;
 
         notify_crosshair_change (false);
         pressed_button = e->xbutton.button;
@@ -1802,6 +1803,8 @@ lesstif_do_export (HID_Attr_Val * options)
   Dimension width, height;
   Widget menu;
   Widget work_area_frame;
+
+  crosshair_gc = lesstif_make_gc ();
 
   n = 0;
   stdarg (XtNwidth, &width);
@@ -2495,7 +2498,7 @@ idle_proc (XtPointer dummy)
     {
       int mx, my;
       BoxType region;
-      lesstif_use_mask (0);
+      lesstif_use_mask (HID_MASK_OFF);
       pixmap = main_pixmap;
       mx = view_width;
       my = view_height;
@@ -2576,7 +2579,7 @@ idle_proc (XtPointer dummy)
       DrawBackgroundImage();
       hid_expose_callback (&lesstif_hid, &region, 0);
       draw_grid ();
-      lesstif_use_mask (0);
+      lesstif_use_mask (HID_MASK_OFF);
       show_crosshair (0); /* To keep the drawn / not drawn info correct */
       XSetFunction (display, my_gc, GXcopy);
       XCopyArea (display, main_pixmap, window, my_gc, 0, 0, view_width,
@@ -2584,8 +2587,8 @@ idle_proc (XtPointer dummy)
       pixmap = window;
       if (crosshair_on)
         {
-          DrawAttached ();
-          DrawMark ();
+          DrawAttached (crosshair_gc);
+          DrawMark (crosshair_gc);
         }
       need_redraw = 0;
     }
@@ -2953,7 +2956,7 @@ lesstif_notify_crosshair_change (bool changes_complete)
     {
       save_pixmap = pixmap;
       pixmap = window;
-      DrawAttached ();
+      DrawAttached (crosshair_gc);
       pixmap = save_pixmap;
     }
 
@@ -2986,7 +2989,7 @@ lesstif_notify_mark_change (bool changes_complete)
     {
       save_pixmap = pixmap;
       pixmap = window;
-      DrawMark ();
+      DrawMark (crosshair_gc);
       pixmap = save_pixmap;
     }
 
@@ -3066,14 +3069,14 @@ lesstif_destroy_gc (hidGC gc)
 }
 
 static void
-lesstif_use_mask (int use_it)
+lesstif_use_mask (enum mask_mode mode)
 {
   if ((TEST_FLAG (THINDRAWFLAG, PCB) || TEST_FLAG(THINDRAWPOLYFLAG, PCB)) &&
       !use_xrender)
-    use_it = 0;
-  if ((use_it == 0) == (use_mask == 0))
+    mode = HID_MASK_OFF;
+  if ((mode == HID_MASK_OFF) == (use_mask == HID_MASK_OFF))
     return;
-  use_mask = use_it;
+  use_mask = mode;
   if (pinout)
     return;
   if (!window)
@@ -3086,7 +3089,7 @@ lesstif_use_mask (int use_it)
 		       XDefaultDepth (display, screen));
       mask_bitmap = XCreatePixmap (display, window, pixmap_w, pixmap_h, 1);
     }
-  if (use_it)
+  if (mode != HID_MASK_OFF)
     {
       pixmap = mask_pixmap;
       XSetForeground (display, my_gc, 0);
@@ -3953,7 +3956,6 @@ lesstif_progress_dialog (int so_far, int total, const char *msg)
 static int
 lesstif_progress (int so_far, int total, const char *message)
 {
-  static bool visible = false;
   static bool started = false;
   XEvent e;
   struct timeval time;
@@ -3964,7 +3966,6 @@ lesstif_progress (int so_far, int total, const char *message)
   if (so_far == 0 && total == 0 && message == NULL)
     {
       XtUnmanageChild (progress_dialog);
-      visible = false;
       started = false;
       progress_cancelled = false;
       return retval;
@@ -4003,12 +4004,12 @@ lesstif_progress (int so_far, int total, const char *message)
   return progress_cancelled;
 }
 
-static HID *
+static HID_DRAW *
 lesstif_request_debug_draw (void)
 {
   /* Send drawing to the backing pixmap */
   pixmap = main_pixmap;
-  return &lesstif_hid;
+  return lesstif_hid.graphics;
 }
 
 static void
@@ -4021,8 +4022,8 @@ lesstif_flush_debug_draw (void)
   pixmap = window;
   if (crosshair_on)
     {
-      DrawAttached ();
-      DrawMark ();
+      DrawAttached (crosshair_gc);
+      DrawMark (crosshair_gc);
     }
   pixmap = main_pixmap;
 }

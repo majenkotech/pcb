@@ -1894,13 +1894,13 @@ ActionDumpLibrary (int argc, char **argv, Coord x, Coord y)
   int i, j;
 
   printf ("**** Do not count on this format.  It will change ****\n\n");
-  printf ("MenuN   = %d\n", Library.MenuN);
-  printf ("MenuMax = %d\n", Library.MenuMax);
+  printf ("MenuN   = %d\n", (int) Library.MenuN);
+  printf ("MenuMax = %d\n", (int) Library.MenuMax);
   for (i = 0; i < Library.MenuN; i++)
     {
       printf ("Library #%d:\n", i);
-      printf ("    EntryN    = %d\n", Library.Menu[i].EntryN);
-      printf ("    EntryMax  = %d\n", Library.Menu[i].EntryMax);
+      printf ("    EntryN    = %d\n", (int) Library.Menu[i].EntryN);
+      printf ("    EntryMax  = %d\n", (int) Library.Menu[i].EntryMax);
       printf ("    Name      = \"%s\"\n", UNKNOWN (Library.Menu[i].Name));
       printf ("    directory = \"%s\"\n",
 	      UNKNOWN (Library.Menu[i].directory));
@@ -2027,7 +2027,7 @@ static const char setthermal_help[] =
   "Style = 0 means no thermal.\n"
   "Style = 1 has diagonal fingers with sharp edges.\n"
   "Style = 2 has horizontal and vertical fingers with sharp edges.\n"
-  "Style = 3 is a solid connection to the plane."
+  "Style = 3 is a solid connection to the plane.\n"
   "Style = 4 has diagonal fingers with rounded edges.\n"
   "Style = 5 has horizontal and vertical fingers with rounded edges.\n");
 
@@ -3478,7 +3478,7 @@ ActionRenumber (int argc, char **argv, Coord x, Coord y)
 		  tmpi = tmpi / 10;
 		}
 	      tmps = (char *)malloc (sz * sizeof (char));
-	      sprintf (tmps, "%s%d", cnt_list[j].name, cnt_list[j].cnt);
+	      sprintf (tmps, "%s%d", cnt_list[j].name, (int) cnt_list[j].cnt);
 
 	      /* 
 	       * now compare to the list of reserved (by locked
@@ -3592,6 +3592,8 @@ ActionRenumber (int argc, char **argv, Coord x, Coord y)
   free (locked_element_list);
   free (element_list);
   free (cnt_list);
+  free (is);
+  free (was);
   return 0;
 }
 
@@ -5948,7 +5950,7 @@ ActionNew (int argc, char **argv, Coord x, Coord y)
 	SaveInTMP ();
       RemovePCB (PCB);
       PCB = NULL;
-      PCB = CreateNewPCB (true);
+      PCB = CreateNewPCB ();
       CreateNewPCBPost (PCB, 1);
 
       /* setup the new name and reset some values to default */
@@ -7846,6 +7848,7 @@ ActionImport (int argc, char **argv, Coord x, Coord y)
 	  tmpfile = tempfile_name_new ("gnetlist_output");
 	  if (tmpfile == NULL) {
 	    Message (_("Could not create temp file"));
+            free (sources);
 	    return 1;
 	  }
 	  must_free_tmpfile = 1;

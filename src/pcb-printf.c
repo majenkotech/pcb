@@ -253,9 +253,9 @@ double coord_to_unit (const Unit *unit, Coord x)
   if (unit == NULL)
     return -1;
   base = unit->family == METRIC
-           ? COORD_TO_MM (1)
-           : COORD_TO_MIL (1);
-  return x * unit->scale_factor * base;
+           ? COORD_TO_MM (x)
+           : COORD_TO_MIL (x);
+  return unit->scale_factor * base;
 }
 
 /* \brief Convert a given unit to pcb coords
@@ -267,7 +267,13 @@ double coord_to_unit (const Unit *unit, Coord x)
  */
 Coord unit_to_coord (const Unit *unit, double x)
 {
-  return x / coord_to_unit (unit, 1);
+  double base;
+  if (unit == NULL)
+    return -1;
+  base = unit->family == METRIC
+           ? MM_TO_COORD (x)
+           : MIL_TO_COORD (x);
+  return base / unit->scale_factor;
 }
 
 static int min_sig_figs(double d)
@@ -488,21 +494,27 @@ gchar *pcb_vprintf(const char *fmt, va_list args)
               g_string_append_c (spec, *fmt++);
           }
           /* Get our sub-specifiers */
-          if(*fmt == '#')
+          while (1)
             {
-              mask = ALLOW_CMIL;  /* This must be pcb's base unit */
-              fmt++;
+              switch (*fmt)
+                {
+                case '#':
+                  mask = ALLOW_CMIL;  /* This must be pcb's base unit */
+                  fmt++;
+                  break;
+                case '$':
+                  suffix = (suffix == NO_SUFFIX) ? SUFFIX : FILE_MODE;
+                  fmt++;
+                  break;
+                case '`':
+                  suffix = (suffix == SUFFIX) ? FILE_MODE : FILE_MODE_NO_SUFFIX;
+                  fmt++;
+                  break;
+                default:
+                  goto end_sub_specifiers;
+                }
             }
-          if(*fmt == '$')
-            {
-              suffix = (suffix == NO_SUFFIX) ? SUFFIX : FILE_MODE;
-              fmt++;
-            }
-          if(*fmt == '`')
-            {
-              suffix = (suffix == SUFFIX) ? FILE_MODE : FILE_MODE_NO_SUFFIX;
-              fmt++;
-            }
+end_sub_specifiers:
           /* Tack full specifier onto specifier */
           if (*fmt != 'm')
             g_string_append_c (spec, *fmt);
@@ -719,3 +731,86 @@ char *pcb_g_strdup_printf(const char *fmt, ...)
   return tmp;
 }
 
+#ifdef PCB_UNIT_TEST
+void
+pcb_printf_register_tests ()
+{
+  g_test_add_func ("/pcb-printf/test-unit", pcb_printf_test_unit);
+  g_test_add_func ("/pcb-printf/test-printf", pcb_printf_test_printf);
+}
+
+void
+pcb_printf_test_unit ()
+{
+  Coord c[] = {
+    unit_to_coord (get_unit_struct ("m"), 1.0),
+    unit_to_coord (get_unit_struct ("mm"), 1.0),
+    unit_to_coord (get_unit_struct ("um"), 1.0),
+    unit_to_coord (get_unit_struct ("mil"), 1.0),
+    unit_to_coord (get_unit_struct ("mil"), 0.5),
+    unit_to_coord (get_unit_struct ("nm"), 67)
+  };
+
+  /* Loop unrolled for ease of pinpointing failure */
+  g_assert (get_unit_struct ("m") != NULL);
+
+  g_assert_cmpuint (c[0], ==, 1000000000);
+  g_assert_cmpuint (c[1], ==, 1000000);
+  g_assert_cmpuint (c[2], ==, 1000);
+  g_assert_cmpuint (c[3], ==, 25400);
+  g_assert_cmpuint (c[4], ==, 12700);
+  g_assert_cmpuint (c[5], ==, 67);
+}
+
+void
+pcb_printf_test_printf ()
+{
+  Coord c = unit_to_coord (get_unit_struct ("nm"), 314);
+  Coord d = unit_to_coord (get_unit_struct ("nm"), 218);
+  Coord e = unit_to_coord (get_unit_struct ("mm"), 101);
+  Coord f = unit_to_coord (get_unit_struct ("mil"), 3);
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mn", c), ==, "314");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mn", c), ==, "314 nm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mu", c), ==, "0.31");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%.3mu", c), ==, "0.314");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mu", c), ==, "0.31 um");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$ml", c), ==, "0.01 mil");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%.5$ml", c), ==, "0.01236 mil");
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mn", e), ==, "101000000");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mn", e), ==, "101000000 nm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mu", e), ==, "101000.00");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mu", e), ==, "101000.00 um");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%ms", e), ==, "101.0000");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$ms", e), ==, "101.0000 mm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mS", e), ==, "10.10000");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mS", e), ==, "10.10000 cm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$ml", e), ==, "3976.38 mil");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%.5$ml", e), ==, "3976.37795 mil");
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mn", f), ==, "76200");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mn", f), ==, "76200 nm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mm", f), ==, "0.0762");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mm", f), ==, "0.0762 mm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%ms", f), ==, "3.00");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$ms", f), ==, "3.00 mil");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mS", f), ==, "3.00");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mS", f), ==, "3.00 mil");
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%ms", c), ==, "0.0003");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$ms", c), ==, "0.0003 mm");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mS", c), ==, "314");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mS", c), ==, "314 nm");
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%mD", c, d), ==, "(314, 218)");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$mD", c, d), ==, "(314, 218) nm");
+
+  /* Some crashes noticed by Peter Clifton */
+  /* specifiers in "wrong" order (should work fine) */
+  g_assert_cmpstr (pcb_g_strdup_printf ("%$#mS", e), ==, "397638 cmil");
+  /* invalid specifier (should passthrough to g_strdup_printf and output nothing) */
+  g_assert_cmpstr (pcb_g_strdup_printf ("%#S", e), ==, "");
+}
+
+#endif

@@ -70,6 +70,7 @@ typedef struct render_priv {
   Coord lead_user_x;
   Coord lead_user_y;
 
+  hidGC crosshair_gc;
 } render_priv;
 
 
@@ -773,6 +774,7 @@ ghid_init_renderer (int *argc, char ***argv, GHidPort *port)
   render_priv *priv;
 
   port->render_priv = priv = g_new0 (render_priv, 1);
+  port->render_priv->crosshair_gc = gui->graphics->make_gc ();
 
   priv->time_since_expose = g_timer_new ();
 
@@ -797,6 +799,9 @@ ghid_init_renderer (int *argc, char ***argv, GHidPort *port)
 void
 ghid_shutdown_renderer (GHidPort *port)
 {
+  render_priv *priv = port->render_priv;
+
+  gui->graphics->destroy_gc (priv->crosshair_gc);
   ghid_cancel_lead_user ();
   g_free (port->render_priv);
   port->render_priv = NULL;
@@ -1008,8 +1013,8 @@ ghid_drawing_area_expose_cb (GtkWidget *widget,
 
   ghid_invalidate_current_gc ();
 
-  DrawAttached ();
-  DrawMark ();
+  DrawAttached (priv->crosshair_gc);
+  DrawMark (priv->crosshair_gc);
   hidgl_flush_triangles (&buffer);
 
   draw_crosshair (priv);
@@ -1294,7 +1299,7 @@ ghid_render_pixmap (int cx, int cy, double zoom, int width, int height, int dept
   return pixmap;
 }
 
-HID *
+HID_DRAW *
 ghid_request_debug_draw (void)
 {
   GHidPort *port = gport;
@@ -1329,7 +1334,7 @@ ghid_request_debug_draw (void)
                 port->view.flip_y ? port->view.y0 - PCB->MaxHeight :
                              -port->view.y0, 0);
 
-  return &ghid_hid;
+  return ghid_hid.graphics;
 }
 
 void
