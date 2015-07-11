@@ -1645,3 +1645,31 @@ static int ReadEdifNetlist (char *filename)
     return 0;
 }
 
+int
+ActionRefreshLibrary (int argc, char **argv, Coord x, Coord y)
+{
+    hid_action ("Busy");
+
+    int i, j;
+
+    for (i = 0; i < Library.MenuN; i++) {
+        Library.Menu[i].EntryN = 0;
+    }
+    Library.MenuN = 0;
+
+    ReadLibraryContents ();
+    return 0;
+}
+
+static const char refresh_library_syntax[] = N_("RefreshLibrary()");
+
+static const char refresh_library_help[] =
+  N_("Reloads the footprint library.");
+
+HID_Action file_action_list[] = {
+  {"RefreshLibrary", 0, ActionRefreshLibrary,
+   refresh_library_help, refresh_library_syntax}
+};
+
+REGISTER_ACTIONS (file_action_list)
+

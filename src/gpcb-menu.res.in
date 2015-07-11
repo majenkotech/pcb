@@ -66,6 +66,7 @@ MainMenu =
    {"Load postscript to buffer" PasteBuffer(Clear) Load(PostscriptTobuffer)}
    {"Load netlist" Load(Netlist)}
    {"Load vendor resource file" LoadVendorFrom()}
+   {"Refresh Library" RefreshLibrary()}
    -
    {"Save connection data of"
      {" a single element" GetXY(Click to set the element mark <>) Save(ElementConnections)}
