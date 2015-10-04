@@ -475,46 +475,54 @@ gchar *pcb_vprintf(const char *fmt, va_list args)
           gchar *unit_str = NULL;
           const char *ext_unit = "";
           Coord value[10];
-          int count, i;
+          int count, i, done;
 
-          g_string_assign (spec, "");
+          g_string_assign (spec, "%");
 
-          /* Get printf sub-specifiers */
-          g_string_append_c (spec, *fmt++);
-          while(isdigit(*fmt) || *fmt == '.' || *fmt == ' ' || *fmt == '*'
-                              || *fmt == '#' || *fmt == 'l' || *fmt == 'L'
-                              || *fmt == 'h' || *fmt == '+' || *fmt == '-')
-          {
-            if (*fmt == '*')
-              {
-                g_string_append_printf (spec, "%d", va_arg (args, int));
-                fmt++;
-              }
-            else
-              g_string_append_c (spec, *fmt++);
-          }
-          /* Get our sub-specifiers */
-          while (1)
+          done = 0;
+          while ( ! done && fmt++ && *fmt)
             {
               switch (*fmt)
                 {
+                /* Our sub-specifiers */
                 case '#':
                   mask = ALLOW_CMIL;  /* This must be pcb's base unit */
-                  fmt++;
                   break;
                 case '$':
                   suffix = (suffix == NO_SUFFIX) ? SUFFIX : FILE_MODE;
-                  fmt++;
                   break;
                 case '`':
                   suffix = (suffix == SUFFIX) ? FILE_MODE : FILE_MODE_NO_SUFFIX;
-                  fmt++;
+                  break;
+                /* Printf sub-specifiers */
+                case '*':
+                  g_string_append_printf (spec, "%d", va_arg (args, int));
+                  break;
+                case '.':
+                case ' ':
+                //case '#': (duplicate)
+                case 'l':
+                case 'L':
+                case 'h':
+                case '+':
+                case '-':
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                  g_string_append_c (spec, *fmt);
                   break;
                 default:
-                  goto end_sub_specifiers;
+                  done = 1;
                 }
             }
-end_sub_specifiers:
+
           /* Tack full specifier onto specifier */
           if (*fmt != 'm')
             g_string_append_c (spec, *fmt);
@@ -523,9 +531,9 @@ end_sub_specifiers:
             /* Printf specs */
             case 'o': case 'i': case 'd':
             case 'u': case 'x': case 'X':
-              if(spec->str[1] == 'l')
+              if(strchr (spec->str, 'l'))
                 {
-                  if(spec->str[2] == 'l')
+                  if(strchr (spec->str, 'l') != strrchr (spec->str, 'l'))
                     unit_str = g_strdup_printf (spec->str, va_arg(args, long long));
                   else
                     unit_str = g_strdup_printf (spec->str, va_arg(args, long));
@@ -535,24 +543,26 @@ end_sub_specifiers:
                   unit_str = g_strdup_printf (spec->str, va_arg(args, int));
                 }
               break;
-            case 'e': case 'E': case 'f':
+            case 'e': case 'E':
+            case 'f': case 'F':
             case 'g': case 'G':
-              if (strchr (spec->str, '*'))
+              if(suffix == FILE_MODE || suffix == FILE_MODE_NO_SUFFIX)
                 {
-                  int prec = va_arg(args, int);
-                  unit_str = g_strdup_printf (spec->str, va_arg(args, double), prec);
+                  gchar buffer[128];
+                  g_ascii_formatd (buffer, 128, spec->str, va_arg(args, double));
+                  unit_str = g_strdup_printf ("%s", buffer);
                 }
               else
                 unit_str = g_strdup_printf (spec->str, va_arg(args, double));
               break;
             case 'c':
-              if(spec->str[1] == 'l' && sizeof(int) <= sizeof(wchar_t))
+              if(strchr (spec->str, 'l') && sizeof(int) <= sizeof(wchar_t))
                 unit_str = g_strdup_printf (spec->str, va_arg(args, wchar_t));
               else
                 unit_str = g_strdup_printf (spec->str, va_arg(args, int));
               break;
             case 's':
-              if(spec->str[0] == 'l')
+              if(strchr (spec->str, 'l'))
                 unit_str = g_strdup_printf (spec->str, va_arg(args, wchar_t *));
               else
                 unit_str = g_strdup_printf (spec->str, va_arg(args, char *));
@@ -642,26 +652,39 @@ end_sub_specifiers:
 }
 
 
-/* \brief Wrapper for pcb_vprintf that outputs to a string
+/*!
+ * \brief Wrapper for pcb_vprintf that outputs to a string.
  *
- * \param [in] string  Pointer to string to output into
- * \param [in] fmt     Format specifier
+ * \param [in] string  Pointer to string to output into.
  *
- * \return The length of the written string
+ * \param [in] size    Maximum length of this string, including the
+ *                     terminating null byte.
+ *
+ * \param [in] fmt     Format specifier.
+ *
+ * \return The length of the written string. In case the string was truncated
+ *         due to the size limit, it's the length of the string which would
+ *         have been written if enough space had been available.
+ *
+ * The returned string is guaranteed to be null terminated, even if truncated.
  */
-int pcb_sprintf(char *string, const char *fmt, ...)
+int pcb_snprintf(char *string, size_t size, const char *fmt, ...)
 {
   gchar *tmp;
+  gsize length;
 
   va_list args;
   va_start(args, fmt);
 
   tmp = pcb_vprintf (fmt, args);
-  strcpy (string, tmp);
+  length = strlen (tmp);
+  strncpy (string, tmp, size);
+  string[size - 1] = '\0';
+
   g_free (tmp);
-  
   va_end(args);
-  return strlen (string);
+
+  return length;
 }
 
 /* \brief Wrapper for pcb_vprintf that outputs to a file
@@ -805,6 +828,9 @@ pcb_printf_test_printf ()
 
   g_assert_cmpstr (pcb_g_strdup_printf ("%mD", c, d), ==, "(314, 218)");
   g_assert_cmpstr (pcb_g_strdup_printf ("%$mD", c, d), ==, "(314, 218) nm");
+
+  g_assert_cmpstr (pcb_g_strdup_printf ("%`f", 7.2456), ==, "7.245600");
+  g_assert_cmpstr (pcb_g_strdup_printf ("%`.2f", 7.2456), ==, "7.25");
 
   /* Some crashes noticed by Peter Clifton */
   /* specifiers in "wrong" order (should work fine) */

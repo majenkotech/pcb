@@ -48,7 +48,7 @@
 #include "undo.h"
 #include "global.h"
 
-#include "gts.h"
+#include <gts.h>
 
 #include <stdlib.h>
 #include <getopt.h>
@@ -226,13 +226,13 @@ typedef struct _toporouter_vertex_class_t toporouter_vertex_class_t;
 #define TOPOROUTER_CONSTRAINT_CLASS(klass)  GTS_OBJECT_CLASS_CAST (klass, toporouter_constraint_class_t, toporouter_constraint_class ())
 
 struct _toporouter_constraint_t {
-  GtsConstraint c;
+  GtsEdge c;
   toporouter_bbox_t *box;
   GList *routing;
 };
 
 struct _toporouter_constraint_class_t {
-  GtsConstraintClass parent_class;
+  GtsEdgeClass parent_class;
 };
 
 typedef struct {

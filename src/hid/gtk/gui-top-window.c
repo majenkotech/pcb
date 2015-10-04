@@ -73,10 +73,6 @@ a zoom in/out.
 
 #include <unistd.h>
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-
 #include "ghid-layer-selector.h"
 #include "ghid-route-style-selector.h"
 #include "gtkhid.h"
@@ -90,7 +86,6 @@ a zoom in/out.
 #include "autoroute.h"
 #include "buffer.h"
 #include "change.h"
-#include "command.h"
 #include "copy.h"
 #include "create.h"
 #include "crosshair.h"
@@ -464,7 +459,7 @@ ghid_notify_filename_changed (void)
  * used by a couple of functions.
  *
  */
-static void
+void
 layer_process (gchar **color_string, char **text, int *set, int i)
 {
   int tmp;
@@ -488,7 +483,10 @@ layer_process (gchar **color_string, char **text, int *set, int i)
     {
     case LAYER_BUTTON_SILK:
       *color_string = Settings.ElementColor;
-      *text = _( "silk");
+      if (Settings.ShowBottomSide)
+         *text = (char *)UNKNOWN (PCB->Data->Layer[bottom_silk_layer].Name);
+      else
+         *text = (char *)UNKNOWN (PCB->Data->Layer[top_silk_layer].Name);
       *set = PCB->ElementOn;
       break;
     case LAYER_BUTTON_RATS:
@@ -946,25 +944,40 @@ typedef struct
   gchar *name;
   gint mode;
   gchar **xpm;
+  gchar *tooltip;
 }
 ModeButton;
 
 
 static ModeButton mode_buttons[] = {
-  {NULL, NULL, 0, 0, N_("via"), VIA_MODE, via},
-  {NULL, NULL, 0, 0, N_("line"), LINE_MODE, line},
-  {NULL, NULL, 0, 0, N_("arc"), ARC_MODE, arc},
-  {NULL, NULL, 0, 0, N_("text"), TEXT_MODE, text},
-  {NULL, NULL, 0, 0, N_("rectangle"), RECTANGLE_MODE, rect},
-  {NULL, NULL, 0, 0, N_("polygon"), POLYGON_MODE, poly},
-  {NULL, NULL, 0, 0, N_("polygonhole"), POLYGONHOLE_MODE, polyhole},
-  {NULL, NULL, 0, 0, N_("buffer"), PASTEBUFFER_MODE, buf},
-  {NULL, NULL, 0, 0, N_("remove"), REMOVE_MODE, del},
-  {NULL, NULL, 0, 0, N_("rotate"), ROTATE_MODE, rot},
-  {NULL, NULL, 0, 0, N_("insertPoint"), INSERTPOINT_MODE, ins},
-  {NULL, NULL, 0, 0, N_("thermal"), THERMAL_MODE, thrm},
-  {NULL, NULL, 0, 0, N_("select"), ARROW_MODE, sel},
-  {NULL, NULL, 0, 0, N_("lock"), LOCK_MODE, lock}
+  {NULL, NULL, 0, 0, N_("via"), VIA_MODE, via,
+    N_("create vias with <select mouse button>")},
+  {NULL, NULL, 0, 0, N_("line"), LINE_MODE, line,
+    N_("create a line segment, toggle draw modes with '/' or '.'")},
+  {NULL, NULL, 0, 0, N_("arc"), ARC_MODE, arc,
+    N_("create an arc segment")},
+  {NULL, NULL, 0, 0, N_("text"), TEXT_MODE, text,
+    N_("create a text")},
+  {NULL, NULL, 0, 0, N_("rectangle"), RECTANGLE_MODE, rect,
+    N_("create a filled rectangle")},
+  {NULL, NULL, 0, 0, N_("polygon"), POLYGON_MODE, poly,
+    N_("create a polygon, <shift>-P for closing the polygon")},
+  {NULL, NULL, 0, 0, N_("polygonhole"), POLYGONHOLE_MODE, polyhole,
+    N_("create a hole into an existing polygon")},
+  {NULL, NULL, 0, 0, N_("buffer"), PASTEBUFFER_MODE, buf,
+    N_("paste the selection from buffer into the layout")},
+  {NULL, NULL, 0, 0, N_("remove"), REMOVE_MODE, del,
+    N_("remove objects under the cursor")},
+  {NULL, NULL, 0, 0, N_("rotate"), ROTATE_MODE, rot,
+    N_("rotate a selection or object CCW, hold the <shift> key to rotate CW")},
+  {NULL, NULL, 0, 0, N_("insertPoint"), INSERTPOINT_MODE, ins,
+    N_("add points into existing lines and polygons")},
+  {NULL, NULL, 0, 0, N_("thermal"), THERMAL_MODE, thrm,
+    N_("create thermals with <select mouse button>, toggle thermal style with <Shift> <select mouse button>")},
+  {NULL, NULL, 0, 0, N_("select"), ARROW_MODE, sel,
+    N_("select, deselect or move objects or selections")},
+  {NULL, NULL, 0, 0, N_("lock"), LOCK_MODE, lock,
+    N_("lock or unlock an object")}
 };
 
 static gint n_mode_buttons = G_N_ELEMENTS (mode_buttons);
@@ -1072,13 +1085,15 @@ make_mode_buttons_and_toolbar (GtkWidget **mode_frame,
 
       /* Create tool button for mode frame */
       mb->button = gtk_radio_button_new (group);
-      gtk_widget_set_tooltip_text (mb->button, _(mb->name));
+      gtk_widget_set_tooltip_text (mb->button, _(mb->tooltip));
+      gtk_widget_set_name (mb->button, (mb->name));
       group = gtk_radio_button_get_group (GTK_RADIO_BUTTON (mb->button));
       gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (mb->button), FALSE);
 
       /* Create tool button for toolbar */
       mb->toolbar_button = gtk_radio_button_new (toolbar_group);
-      gtk_widget_set_tooltip_text (mb->toolbar_button, _(mb->name));
+      gtk_widget_set_tooltip_text (mb->toolbar_button, _(mb->tooltip));
+      gtk_widget_set_name (mb->toolbar_button, (mb->name));
       toolbar_group = gtk_radio_button_get_group (GTK_RADIO_BUTTON (mb->toolbar_button));
       gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (mb->toolbar_button), FALSE);
 
@@ -1755,17 +1770,9 @@ ghid_parse_arguments (int *argc, char ***argv)
    */
   /* g_thread_init (NULL); */
 
-#if defined (ENABLE_NLS)
-  /* Do our own setlocale() stufff since we want to override LC_NUMERIC   
-   */
-  gtk_set_locale ();
-  setlocale (LC_NUMERIC, "C");	/* use decimal point instead of comma */
-#endif
-
   /*
-   * Prevent gtk_init() and gtk_init_check() from automatically
-   * calling setlocale (LC_ALL, "") which would undo LC_NUMERIC if ENABLE_NLS
-   * We also don't want locale set if no ENABLE_NLS to keep "C" LC_NUMERIC.
+   * Prevent gtk_init() and gtk_init_check() from automatically calling
+   * setlocale (LC_ALL, "") which would undo LC_NUMERIC handling in main().
    */
   gtk_disable_setlocale ();
 
@@ -1786,21 +1793,17 @@ ghid_parse_arguments (int *argc, char ***argv)
 	Settings.AutoPlace = 1;
     }
 
-#ifdef ENABLE_NLS
-#ifdef LOCALEDIR
   bindtextdomain (PACKAGE, LOCALEDIR);
-#endif
   textdomain (PACKAGE);
   bind_textdomain_codeset (PACKAGE, "UTF-8");
-#endif /* ENABLE_NLS */
 
   icon = gdk_pixbuf_new_from_xpm_data ((const gchar **) icon_bits);
   gtk_window_set_default_icon (icon);
 
   window = gport->top_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), "PCB");
-  gtk_window_set_default_size(GTK_WINDOW(window),
-			       ghidgui->top_window_width, ghidgui->top_window_height);
+  gtk_window_resize (GTK_WINDOW(window),
+                     ghidgui->top_window_width, ghidgui->top_window_height);
 
   if (Settings.AutoPlace)
     gtk_window_move (GTK_WINDOW (window), 10, 10);
@@ -1914,7 +1917,7 @@ ToggleView (int argc, char **argv, Coord x, Coord y)
   else
     {
       l = -1;
-      for (i = 0; i < max_copper_layer + 2; i++)
+      for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
 	if (strcmp (argv[0], PCB->Data->Layer[i].Name) == 0)
 	  {
 	    l = i;
@@ -2192,11 +2195,9 @@ Opens the window which allows editing of the route styles.
 static int
 AdjustStyle(int argc, char **argv, Coord x, Coord y)
 {
-  if (argc > 1)
-    AFAIL (adjuststyle);
-
   ghid_route_style_selector_edit_dialog
     (GHID_ROUTE_STYLE_SELECTOR (ghidgui->route_style_selector));
+
   return 0;
 }
 

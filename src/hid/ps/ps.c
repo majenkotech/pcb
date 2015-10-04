@@ -369,7 +369,7 @@ static struct {
   int pagecount;
   Coord linewidth;
   bool print_group[MAX_GROUP];
-  bool print_layer[MAX_LAYER];
+  bool print_layer[MAX_ALL_LAYER];
   double fade_ratio;
   bool multi_file;
   Coord media_width, media_height, ps_width, ps_height;
@@ -707,7 +707,7 @@ static void
 ps_do_export (HID_Attr_Val * options)
 {
   FILE *fh;
-  int save_ons[MAX_LAYER + 2];
+  int save_ons[MAX_ALL_LAYER];
   int i;
 
   if (!options)
@@ -1193,6 +1193,8 @@ ps_draw_arc (hidGC gc, Coord cx, Coord cy, Coord width, Coord height,
 	     Angle start_angle, Angle delta_angle)
 {
   Angle sa, ea;
+  double linewidth;
+
   if (delta_angle > 0)
     {
       sa = start_angle;
@@ -1203,14 +1205,33 @@ ps_draw_arc (hidGC gc, Coord cx, Coord cy, Coord width, Coord height,
       sa = start_angle + delta_angle;
       ea = start_angle;
     }
-#if 0
-  printf ("draw_arc %d,%d %dx%d %d..%d %d..%d\n",
-	  cx, cy, width, height, start_angle, delta_angle, sa, ea);
-#endif
+
   use_gc (gc);
-  pcb_fprintf (global.f, "%ma %ma %mi %mi %mi %mi %g a\n",
-               sa, ea, -width, height, cx, cy,
-               (double) (global.linewidth + 2 * global.bloat) / (double) width);
+
+  /* Other than pcb's screen renderer, PostScript (at least GhostScript)
+     internally limits linewidth to (diameter / 2), so no drawing of a dot with
+     a circle of zero diameter. Compensate for this by making diameter larger
+     and line width thinner.
+
+     Handling of this case currently has only circles in mind, no ellipses.
+     The regular case works with ellipses, too. */
+  if (width < global.linewidth)
+    {
+      Coord outer_radius;
+
+      outer_radius = width + global.linewidth / 2 + global.bloat;
+      width = height = outer_radius / 2;
+      linewidth = 2.0;
+    }
+  else
+    linewidth = (double) (global.linewidth + 2 * global.bloat) / (double) width;
+
+  /* The line of PostScript written here is a bit odd; linewidth isn't
+     absolute, but relative to circle diameter. This is neccessary for
+     ellipses, which are drawn by streching (transforming) a circle. */
+  pcb_fprintf (global.f, "%ma %ma %mi %mi %mi %mi %`g a\n",
+               sa, ea, -width, height, cx, cy, linewidth);
+
 }
 
 static void
@@ -1275,6 +1296,8 @@ fill_polyarea (hidGC gc, POLYAREA * pa, const BoxType * clip_box)
 static void
 ps_draw_pcb_polygon (hidGC gc, PolygonType * poly, const BoxType * clip_box)
 {
+  if (!poly->Clipped)
+    return;
   fill_polyarea (gc, poly->Clipped, clip_box);
   if (TEST_FLAG (FULLPOLYFLAG, poly))
     {

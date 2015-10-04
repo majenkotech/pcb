@@ -113,7 +113,7 @@ static int lastgroup = -1;
 static gdImagePtr lastbrush = (gdImagePtr)((void *) -1);
 static int lastcap = -1;
 static int print_group[MAX_GROUP];
-static int print_layer[MAX_LAYER];
+static int print_layer[MAX_ALL_LAYER];
 
 /* For photo-mode we need the following layers as monochrome masks:
 
@@ -127,10 +127,10 @@ static int print_layer[MAX_LAYER];
 #define PHOTO_FLIP_Y	2
 
 static int photo_mode, photo_flip;
-static gdImagePtr photo_copper[MAX_LAYER+2];
+static gdImagePtr photo_copper[MAX_ALL_LAYER];
 static gdImagePtr photo_silk, photo_mask, photo_drill, *photo_im;
 static gdImagePtr photo_outline;
-static int photo_groups[MAX_LAYER+2], photo_ngroups;
+static int photo_groups[MAX_ALL_LAYER], photo_ngroups;
 static int photo_has_inners;
 
 static int doing_outline, have_outline;
@@ -783,7 +783,7 @@ ts_bs_sm (gdImagePtr im)
 static void
 png_do_export (HID_Attr_Val * options)
 {
-  int save_ons[MAX_LAYER + 2];
+  int save_ons[MAX_ALL_LAYER];
   int i;
   BoxType *bbox;
   Coord w, h;
@@ -918,14 +918,14 @@ png_do_export (HID_Attr_Val * options)
 	  || ( (xmax > 0) 
 	       && ((w / xmax) > (h / ymax)) ) )
 	{
-	  h = (h * xmax) / w;
 	  scale = w / xmax;
+	  h = h / scale;
 	  w = xmax;
 	}
       else
 	{
-	  w = (w * ymax) / h;
 	  scale = h / ymax;
+	  w = w / scale;
 	  h = ymax;
 	}
     }
@@ -996,9 +996,12 @@ png_do_export (HID_Attr_Val * options)
 
       im = master_im;
 
-      ts_bs (photo_copper[photo_groups[0]]);
-      ts_bs (photo_silk);
-      ts_bs_sm (photo_mask);
+      if (photo_copper[photo_groups[0]])
+        ts_bs (photo_copper[photo_groups[0]]);
+      if (photo_silk)
+        ts_bs (photo_silk);
+      if (photo_mask)
+        ts_bs_sm (photo_mask);
 
       if (photo_outline && have_outline) {
 	int black=gdImageColorResolve(photo_outline, 0x00, 0x00, 0x00);
@@ -1043,7 +1046,11 @@ png_do_export (HID_Attr_Val * options)
 	      if (photo_ngroups == 2)
 		blend (&cop, 0.3, &cop, &fr4);
 	      
-	      cc = gdImageGetPixel (photo_copper[photo_groups[0]], x, y);
+              if (photo_copper[photo_groups[0]])
+                cc = gdImageGetPixel (photo_copper[photo_groups[0]], x, y);
+              else
+                cc = 0;
+
 	      if (cc)
 		{
 		  int r;

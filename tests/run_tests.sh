@@ -72,11 +72,13 @@ OPTIONS
 -g | --golden <dir>    :  Specifies that <dir> should be used for the
                           reference files. 
 
+-r | --regen           :  Specifies that the results should be taken as new
+                          reference files instead of comparing them to the
+                          existing ones.
+
 LIMITATIONS
 
 - The GUI interface is not checked via the regression testsuite.
-
-- Currently actions are also not exercised
 
 EOF
 }
@@ -166,7 +168,7 @@ top_srcdir=${top_srcdir:-.}
 
 # The pcb wrapper script we want to test
 #
-# by default we will be running it from $(top_builddir)/tests/outputs/testname
+# by default we will be running it from $(srcdir)/runs/testname
 # so we need to look 3 levels up and then down to src
 PCB=${PCB:-../../../src/pcbtest.sh}
 
@@ -449,6 +451,43 @@ compare_cnc() {
 
 ##########################################################################
 #
+# PostScript comparison
+#
+
+compare_ps() {
+    local f1="$1"
+    local f2="$2"
+    compare_check "compare_ps" "$f1" "$f2" || return 1
+
+    # PostScript output is difficult to compare, because the last page
+    # ( = fab page) contains a date stamp written not as text, but drawn
+    # with lines. For now we only check wether the file contains valid
+    # PostScript and wether the page count matches.
+    TEMP_FILE=`mktemp`
+    echo "%!"                                      > ${TEMP_FILE}
+    echo "currentpagedevice /PageCount get"       >> ${TEMP_FILE}
+    echo " == flush"                              >> ${TEMP_FILE}
+
+    ORG_COUNT=`gs -q -dNODISPLAY -dBATCH -dNOPAUSE "$f1" ${TEMP_FILE}`
+    NEW_COUNT=`gs -q -dNODISPLAY -dBATCH -dNOPAUSE "$f2" ${TEMP_FILE}`
+    RESULT=$?
+
+    rm -f ${TEMP_FILE}
+
+    if test ${RESULT} -ne 0; then
+        echo "Invalid PostScript generated."
+        test_failed=yes
+    else if test "${ORG_COUNT}" != "${NEW_COUNT}"; then
+        echo -n "Page count of generated PostScript is ${NEW_COUNT} "
+        echo    "instead of expected ${OLD_COUNT}."
+        test_failed=yes
+    fi; fi
+
+    unset ORG_COUNT NEW_COUNT RESULT
+}
+
+##########################################################################
+#
 # GIF/JPEG/PNG comparison routines
 #
 
@@ -482,6 +521,19 @@ EOF
 
 ##########################################################################
 #
+# PCB (layout) comparison routines
+#
+
+compare_pcb() {
+    local f1="$1"
+    local f2="$2"
+    compare_check "compare_pcb" "$f1" "$f2" || return 1
+
+    run_diff "$f1" "$f2" || test_failed=yes
+}
+
+##########################################################################
+#
 # The main program loop
 #
 
@@ -511,6 +563,14 @@ for t in $all_tests ; do
     mismatch=`grep "^[ \t]*${t}[ \t]*|" $TESTLIST | $AWK 'BEGIN{FS="|"} {if($5 == "mismatch"){print "yes"}else{print "no"}}'`
     out_files=`grep "^[ \t]*${t}[ \t]*|" $TESTLIST | $AWK 'BEGIN{FS="|"} {print $6}'`
    
+    # strip whitespace from single file names
+    while test "X${files# }" != "X${files#}" ; do
+	files="${files# }"
+    done
+    while test "X${files% }" != "X${files%}" ; do
+	files="${files% }"
+    done
+
     if test "X${name}" = "X" ; then
 	echo "ERROR:  Specified test ${t} does not appear to exist"
 	skip=`expr $skip + 1`
@@ -523,6 +583,14 @@ for t in $all_tests ; do
 
     if test "X${hid}" = "Xgerber" ; then
 	pcb_flags="--fab-author Fab_Author ${pcb_flags}"
+    fi
+
+    if test "X${hid}" = "Xaction" ; then
+	script_file=${files%.pcb}.script
+	pcb_flags="--action-script ../../${INDIR}/${script_file}"
+    else
+	# hidden here, still in effect for all HID tests
+	pcb_flags="-x ${hid} ${pcb_flags}"
     fi
 
     ######################################################################
@@ -554,6 +622,7 @@ for t in $all_tests ; do
 	else
 	    path_files="${path_files} ${INDIR}/${f}"
 	    cp "${INDIR}/${f}" "${rundir}"
+	    chmod u+w "${rundir}/${f}"
 	fi
     done
 
@@ -568,8 +637,8 @@ for t in $all_tests ; do
     # run PCB
     #
 
-    echo "${PCB} -x ${hid} ${pcb_flags} ${path_files}"
-    (cd ${rundir} && ${PCB} -x ${hid} ${pcb_flags} ${files})
+    echo "(cd ${rundir} && ${PCB} ${pcb_flags} ${files})"
+    (cd ${rundir} && ${PCB} ${pcb_flags} ${files})
     pcb_rc=$?
 
     if test $pcb_rc -ne 0 ; then
@@ -578,27 +647,12 @@ for t in $all_tests ; do
 	continue
     fi
 
-    # and clean up the input files we'd copied over
-    for f in $files ; do
-	rm -f ${rundir}/${f}
-    done
-
     ######################################################################
     #
     # check the result
     #
 
     if test "X$regen" = "Xyes" ; then
-	echo    "## -*- makefile -*-"   > ${rundir}/Makefile.am
-	echo                           >> ${rundir}/Makefile.am
-	echo -n "EXTRA_DIST="          >> ${rundir}/Makefile.am
-	for f in $out_files ; do
-	    fn=`echo $f | sed 's;.*:;;g'`
-	    echo    " \\"              >> ${rundir}/Makefile.am
-	    echo -n "\t$fn"            >> ${rundir}/Makefile.am
-	done
-	echo                           >> ${rundir}/Makefile.am
-
 	echo "Regenerated ${t}"
     else
 	# compare the result to our reference file
@@ -634,6 +688,11 @@ for t in $all_tests ; do
 		    compare_rs274x ${refdir}/${fn} ${rundir}/${fn}
 		    ;;
 
+		# PS HID
+		ps)
+		    compare_ps ${refdir}/${fn} ${rundir}/${fn}
+		    ;;
+
 		# PNG HID
 	        gif)
 		    compare_image ${refdir}/${fn} ${rundir}/${fn}
@@ -647,6 +706,11 @@ for t in $all_tests ; do
 		    compare_image ${refdir}/${fn} ${rundir}/${fn}
 		    ;;
 
+		# actions
+		pcb)
+		    compare_pcb ${refdir}/${fn} ${rundir}/${fn}
+		    ;;
+
 		# unknown
 		*)
 		    echo "internal error:  $type is not a known file type"
@@ -656,6 +720,12 @@ for t in $all_tests ; do
 
 	done
 
+	if test "X${hid}" != "Xaction" ; then
+	    # clean up the input files we'd copied over
+	    for f in $files ; do
+		rm -f ${rundir}/${f}
+	    done
+	fi
 
 	if test $test_failed = yes ; then
 	    echo "FAIL"
@@ -669,7 +739,7 @@ for t in $all_tests ; do
 	fi
 
     fi
-    
+
 done
 
 show_sep

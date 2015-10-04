@@ -130,7 +130,7 @@ Element(0x00 "$1" "`$2'" "$3" 160 10 3 100 0x00)
 	ElementLine(100 50 100 MAXY 20)
 	ElementArc(50  50 50 50 180 180 20)
 	ElementArc(50 MAXY 50 50   0 180 20)
-	forloop(`i', 1, eval($4 /2 -1),
+	forloop(`i', 1, eval($4 - 1),
 		`ElementLine(0 eval(i * 200) 100 eval(i * 200) 10)
 	')
 	Mark(50 50)
@@ -289,10 +289,11 @@ define(`PKG_DIODE_LAY',
 	define(`Y', `eval(`$4' /2)')
 	define(`DELTA', `eval(X1 /2)')
 	define(`PINSIZE', `ifelse(eval($4 >= 500), 1, 80, 50)')
+	define(`DRILLSIZE', `ifelse(eval($4 >= 500), 1, 50, 30)')
 Element(0x00 "$1" "`$2'" "$3" eval(X2+20) eval(Y-DELTA) 0 100 0x00)
 (
-	PIN(0, Y, PINSIZE, 20, 1)
-	PIN($4, Y, PINSIZE, 20, 2)
+	PIN(0, Y, PINSIZE, DRILLSIZE, 1)
+	PIN($4, Y, PINSIZE, DRILLSIZE, 2)
 
 	ElementLine(0 Y X1 Y 10)
 	ElementLine(X2 Y $4 Y 10)

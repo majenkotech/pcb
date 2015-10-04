@@ -74,9 +74,9 @@ ReportDrills (int argc, char **argv, Coord x, Coord y)
   Cardinal n;
   char *stringlist, *thestring;
   int total_drills = 0;
+  size_t size_left;
 
   AllDrills = GetDrillInfo (PCB->Data);
-  RoundDrillInfo (AllDrills, 100);
 
   for (n = 0; n < AllDrills->DrillN; n++)
     {
@@ -84,7 +84,8 @@ ReportDrills (int argc, char **argv, Coord x, Coord y)
       total_drills += AllDrills->Drill[n].ViaCount;
     }
 
-  stringlist = (char *)malloc (512L + AllDrills->DrillN * 64L);
+  size_left = 512L + AllDrills->DrillN * 64L;
+  stringlist = (char *)malloc (size_left);
 
   /* Use tabs for formatting since can't count on a fixed font anymore.
      |  And even that probably isn't going to work in all cases.
@@ -93,20 +94,28 @@ ReportDrills (int argc, char **argv, Coord x, Coord y)
 	   _("There are %d different drill sizes used in this layout, %d holes total\n\n"
 	   "Drill Diam. (%s)\t# of Pins\t# of Vias\t# of Elements\t# Unplated\n"),
 	   AllDrills->DrillN, total_drills, Settings.grid_unit->suffix);
+
   thestring = stringlist;
-  while (*thestring != '\0')
-    thestring++;
+  while (size_left > 0 && *thestring != '\0')
+    {
+      thestring++;
+      size_left--;
+    }
+
   for (n = 0; n < AllDrills->DrillN; n++)
     {
-      pcb_sprintf (thestring,
+      pcb_snprintf (thestring, size_left,
 	       "%10m*\t\t%d\t\t%d\t\t%d\t\t%d\n",
 	       Settings.grid_unit->suffix,
 	       AllDrills->Drill[n].DrillSize,
 	       AllDrills->Drill[n].PinCount, AllDrills->Drill[n].ViaCount,
 	       AllDrills->Drill[n].ElementN,
 	       AllDrills->Drill[n].UnplatedCount);
-      while (*thestring != '\0')
-	thestring++;
+      while (size_left > 0 && *thestring != '\0')
+	{
+	  thestring++;
+	  size_left--;
+	}
     }
   FreeDrillInfo (AllDrills);
   /* create dialog box */
@@ -154,7 +163,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 #endif
 	via = (PinType *) ptr2;
 	if (TEST_FLAG (HOLEFLAG, via))
-	  pcb_sprintf (&report[0], _("%m+VIA ID# %ld; Flags:%s\n"
+	  pcb_snprintf (report, sizeof (report), _("%m+VIA ID# %ld; Flags:%s\n"
 		   "(X,Y) = %$mD.\n"
 		   "It is a pure hole of diameter %$mS.\n"
 		   "Name = \"%s\"."
@@ -162,7 +171,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 		   via->X, via->Y, via->DrillingHole, EMPTY (via->Name),
 		   TEST_FLAG (LOCKFLAG, via) ? _("It is LOCKED.\n") : "");
 	else
-	  pcb_sprintf (&report[0], _("%m+VIA ID# %ld;  Flags:%s\n"
+	  pcb_snprintf (report, sizeof (report), _("%m+VIA ID# %ld;  Flags:%s\n"
 		   "(X,Y) = %$mD.\n"
 		   "Copper width = %$mS. Drill width = %$mS.\n"
 		   "Clearance width in polygons = %$mS.\n"
@@ -202,7 +211,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	}
 	END_LOOP;
 	if (TEST_FLAG (HOLEFLAG, Pin))
-	  pcb_sprintf (&report[0], _("%m+PIN ID# %ld; Flags:%s\n"
+	  pcb_snprintf (report, sizeof (report), _("%m+PIN ID# %ld; Flags:%s\n"
 		   "(X,Y) = %$mD.\n"
 		   "It is a mounting hole. Drill width = %$mS.\n"
 		   "It is owned by element %$mS.\n"
@@ -211,7 +220,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 		   EMPTY (element->Name[1].TextString),
 		   TEST_FLAG (LOCKFLAG, Pin) ? _("It is LOCKED.\n") : "");
 	else
-	  pcb_sprintf (&report[0],
+	  pcb_snprintf (report, sizeof (report),
 		   _("%m+PIN ID# %ld;  Flags:%s\n" "(X,Y) = %$mD.\n"
 		   "Copper width = %$mS. Drill width = %$mS.\n"
 		   "Clearance width to Polygon = %$mS.\n"
@@ -244,7 +253,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	  }
 #endif
 	line = (LineType *) ptr2;
-	pcb_sprintf (&report[0], _("%m+LINE ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+LINE ID# %ld;  Flags:%s\n"
 		 "FirstPoint(X,Y)  = %$mD, ID = %ld.\n"
 		 "SecondPoint(X,Y) = %$mD, ID = %ld.\n"
 		 "Width = %$mS.\nClearance width in polygons = %$mS.\n"
@@ -271,7 +280,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	  }
 #endif
 	line = (RatType *) ptr2;
-	pcb_sprintf (&report[0], _("%m+RAT-LINE ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+RAT-LINE ID# %ld;  Flags:%s\n"
 		 "FirstPoint(X,Y)  = %$mD; ID = %ld; "
 		 "connects to layer group %d.\n"
 		 "SecondPoint(X,Y) = %$mD; ID = %ld; "
@@ -298,7 +307,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	Arc = (ArcType *) ptr2;
 	box = GetArcEnds (Arc);
 
-	pcb_sprintf (&report[0], _("%m+ARC ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+ARC ID# %ld;  Flags:%s\n"
 		 "CenterPoint(X,Y) = %$mD.\n"
 		 "Radius = %$mS, Thickness = %$mS.\n"
 		 "Clearance width in polygons = %$mS.\n"
@@ -331,7 +340,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 #endif
 	Polygon = (PolygonType *) ptr2;
 
-	pcb_sprintf (&report[0], _("%m+POLYGON ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+POLYGON ID# %ld;  Flags:%s\n"
 		 "Its bounding box is %$mD %$mD.\n"
 		 "It has %d points and could store %d more\n"
 		 "  without using more memory.\n"
@@ -370,7 +379,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	}
 	END_LOOP;
 	len = Distance (Pad->Point1.X, Pad->Point1.Y, Pad->Point2.X, Pad->Point2.Y);
-	pcb_sprintf (&report[0], _("%m+PAD ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+PAD ID# %ld;  Flags:%s\n"
 		 "FirstPoint(X,Y)  = %$mD; ID = %ld.\n"
 		 "SecondPoint(X,Y) = %$mD; ID = %ld.\n"
 		 "Width = %$mS.  Length = %$mS.\n"
@@ -407,7 +416,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	  }
 #endif
 	element = (ElementType *) ptr2;
-	pcb_sprintf (&report[0], _("%m+ELEMENT ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+ELEMENT ID# %ld;  Flags:%s\n"
 		 "BoundingBox %$mD %$mD.\n"
 		 "Descriptive Name \"%s\".\n"
 		 "Name on board \"%s\".\n"
@@ -455,7 +464,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 	if (type == TEXT_TYPE)
 	  sprintf (laynum, _("It is on layer %d."),
 		   GetLayerNumber (PCB->Data, (LayerType *) ptr1));
-	pcb_sprintf (&report[0], _("%m+TEXT ID# %ld;  Flags:%s\n"
+	pcb_snprintf (report, sizeof (report), _("%m+TEXT ID# %ld;  Flags:%s\n"
 		 "Located at (X,Y) = %$mD.\n"
 		 "Characters are %$mS tall.\n"
 		 "Value is \"%s\".\n"
@@ -475,7 +484,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
     case POLYGONPOINT_TYPE:
       {
 	PointType *point = (PointType *) ptr2;
-	pcb_sprintf (&report[0], _("%m+POINT ID# %ld.\n"
+	pcb_snprintf (report, sizeof (report), _("%m+POINT ID# %ld.\n"
 		 "Located at (X,Y) = %$mD.\n"
 		 "It belongs to a %s on layer %d.\n"), USER_UNITMASK, point->ID,
 		 point->X, point->Y,
@@ -489,7 +498,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
       break;
 
     default:
-      sprintf (&report[0], _("Unknown\n"));
+      sprintf (report, _("Unknown\n"));
       break;
     }
 
@@ -499,7 +508,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
       return 1;
     }
   /* create dialog box */
-  gui->report_dialog (_("Report"), &report[0]);
+  gui->report_dialog (_("Report"), report);
 
   return 0;
 }
@@ -671,7 +680,7 @@ ReportAllNetLengths (int argc, char **argv, Coord x, Coord y)
           /* Reset connectors for the next lookup */
           ClearFlagOnAllObjects (false, FOUNDFLAG);
 
-          pcb_sprintf(buf, _("%$m*"), units_name, length);
+          pcb_snprintf(buf, sizeof (buf), _("%$m*"), units_name, length);
           gui->log(_("Net %s length %s\n"), netname, buf);
         }
     }
@@ -772,7 +781,7 @@ got_net_name:
 
   {
     char buf[50];
-    pcb_sprintf(buf, _("%$m*"), Settings.grid_unit->suffix, length);
+    pcb_snprintf(buf, sizeof (buf), _("%$m*"), Settings.grid_unit->suffix, length);
     if (netname)
       gui->log (_("Net \"%s\" length: %s\n"), netname, buf);
     else
@@ -925,7 +934,7 @@ ReportNetLengthByName (char *tofind, int x, int y)
 
   {
     char buf[50];
-    pcb_sprintf(buf, _("%$m*"), Settings.grid_unit->suffix, length);
+    pcb_snprintf(buf, 50, _("%$m*"), Settings.grid_unit->suffix, length);
     if (netname)
       gui->log (_("Net \"%s\" length: %s\n"), netname, buf);
     else

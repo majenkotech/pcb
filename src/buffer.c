@@ -1,30 +1,34 @@
-/*
- *                            COPYRIGHT
+/*!
+ * \file src/buffer.c
  *
- *  PCB, interactive printed circuit board design
- *  Copyright (C) 1994,1995,1996, 2005 Thomas Nau
+ * \brief Functions used by paste- and move/copy buffer.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * <hr>
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * <h1><b>Copyright.</b></h1>\n
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * PCB, interactive printed circuit board design
  *
- *  Contact addresses for paper mail and Email:
- *  Thomas Nau, Schlehenweg 15, 88471 Baustetten, Germany
- *  Thomas.Nau@rz.uni-ulm.de
+ * Copyright (C) 1994,1995,1996, 2005 Thomas Nau
  *
- */
-
-/* functions used by paste- and move/copy buffer
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Contact addresses for paper mail and Email:
+ * Thomas Nau, Schlehenweg 15, 88471 Baustetten, Germany
+ * Thomas.Nau@rz.uni-ulm.de
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -113,8 +117,8 @@ MoveLineToBuffer,
 
 static int ExtraFlag = 0;
 
-/* ---------------------------------------------------------------------------
- * copies a via to paste buffer
+/*!
+ * \brief Copies a via to paste buffer.
  */
 static void *
 AddViaToBuffer (PinType *Via)
@@ -124,8 +128,8 @@ AddViaToBuffer (PinType *Via)
 			MaskFlags (Via->Flags, NOCOPY_FLAGS | ExtraFlag)));
 }
 
-/* ---------------------------------------------------------------------------
- * copies a rat-line to paste buffer
+/*!
+ * \brief Copies a rat-line to paste buffer.
  */
 static void *
 AddRatToBuffer (RatType *Rat)
@@ -136,8 +140,8 @@ AddRatToBuffer (RatType *Rat)
 			MaskFlags (Rat->Flags, NOCOPY_FLAGS | ExtraFlag)));
 }
 
-/* ---------------------------------------------------------------------------
- * copies a line to buffer  
+/*!
+ * \brief Copies a line to buffer.
  */
 static void *
 AddLineToBuffer (LayerType *Layer, LineType *Line)
@@ -155,8 +159,8 @@ AddLineToBuffer (LayerType *Layer, LineType *Line)
   return (line);
 }
 
-/* ---------------------------------------------------------------------------
- * copies an arc to buffer  
+/*!
+ * \brief Copies an arc to buffer.
  */
 static void *
 AddArcToBuffer (LayerType *Layer, ArcType *Arc)
@@ -170,8 +174,8 @@ AddArcToBuffer (LayerType *Layer, ArcType *Arc)
 					  NOCOPY_FLAGS | ExtraFlag)));
 }
 
-/* ---------------------------------------------------------------------------
- * copies a text to buffer
+/*!
+ * \brief Copies a text to buffer.
  */
 static void *
 AddTextToBuffer (LayerType *Layer, TextType *Text)
@@ -183,8 +187,8 @@ AddTextToBuffer (LayerType *Layer, TextType *Text)
 			 MaskFlags (Text->Flags, ExtraFlag)));
 }
 
-/* ---------------------------------------------------------------------------
- * copies a polygon to buffer
+/*!
+ * \brief Copies a polygon to buffer.
  */
 static void *
 AddPolygonToBuffer (LayerType *Layer, PolygonType *Polygon)
@@ -207,8 +211,8 @@ AddPolygonToBuffer (LayerType *Layer, PolygonType *Polygon)
   return (polygon);
 }
 
-/* ---------------------------------------------------------------------------
- * copies a element to buffer
+/*!
+ * \brief Copies a element to buffer.
  */
 static void *
 AddElementToBuffer (ElementType *Element)
@@ -216,8 +220,9 @@ AddElementToBuffer (ElementType *Element)
   return CopyElementLowLevel (Dest, Element, false, 0, 0, NOCOPY_FLAGS | ExtraFlag);
 }
 
-/* ---------------------------------------------------------------------------
- * moves a via to paste buffer without allocating memory for the name
+/*!
+ * \brief Moves a via to paste buffer without allocating memory for the
+ * name.
  */
 static void *
 MoveViaToBuffer (PinType *via)
@@ -239,8 +244,8 @@ MoveViaToBuffer (PinType *via)
   return via;
 }
 
-/* ---------------------------------------------------------------------------
- * moves a rat-line to paste buffer
+/*!
+ * \brief Moves a rat-line to paste buffer.
  */
 static void *
 MoveRatToBuffer (RatType *rat)
@@ -260,8 +265,8 @@ MoveRatToBuffer (RatType *rat)
   return rat;
 }
 
-/* ---------------------------------------------------------------------------
- * moves a line to buffer  
+/*!
+ * \brief Moves a line to buffer.
  */
 static void *
 MoveLineToBuffer (LayerType *layer, LineType *line)
@@ -285,8 +290,8 @@ MoveLineToBuffer (LayerType *layer, LineType *line)
   return (line);
 }
 
-/* ---------------------------------------------------------------------------
- * moves an arc to buffer  
+/*!
+ * \brief Moves an arc to buffer.
  */
 static void *
 MoveArcToBuffer (LayerType *layer, ArcType *arc)
@@ -310,8 +315,8 @@ MoveArcToBuffer (LayerType *layer, ArcType *arc)
   return (arc);
 }
 
-/* ---------------------------------------------------------------------------
- * moves a text to buffer without allocating memory for the name
+/*!
+ * \brief Moves a text to buffer without allocating memory for the name.
  */
 static void *
 MoveTextToBuffer (LayerType *layer, TextType *text)
@@ -333,8 +338,10 @@ MoveTextToBuffer (LayerType *layer, TextType *text)
   return (text);
 }
 
-/* ---------------------------------------------------------------------------
- * moves a polygon to buffer. Doesn't allocate memory for the points
+/*!
+ * \brief Moves a polygon to buffer.
+ *
+ * Doesn't allocate memory for the points.
  */
 static void *
 MovePolygonToBuffer (LayerType *layer, PolygonType *polygon)
@@ -356,8 +363,9 @@ MovePolygonToBuffer (LayerType *layer, PolygonType *polygon)
   return (polygon);
 }
 
-/* ---------------------------------------------------------------------------
- * moves a element to buffer without allocating memory for pins/names
+/*!
+ * \brief Moves a element to buffer without allocating memory for
+ * pins/names.
  */
 static void *
 MoveElementToBuffer (ElementType *element)
@@ -403,8 +411,8 @@ MoveElementToBuffer (ElementType *element)
   return element;
 }
 
-/* ---------------------------------------------------------------------------
- * calculates the bounding box of the buffer
+/*!
+ * \brief Calculates the bounding box of the buffer.
  */
 void
 SetBufferBoundingBox (BufferType *Buffer)
@@ -415,8 +423,8 @@ SetBufferBoundingBox (BufferType *Buffer)
     Buffer->BoundingBox = *box;
 }
 
-/* ---------------------------------------------------------------------------
- * clears the contents of the paste buffer
+/*!
+ * \brief Clears the contents of the paste buffer.
  */
 void
 ClearBuffer (BufferType *Buffer)
@@ -428,9 +436,10 @@ ClearBuffer (BufferType *Buffer)
     }
 }
 
-/* ----------------------------------------------------------------------
- * copies all selected and visible objects to the paste buffer
- * returns true if any objects have been removed
+/*!
+ * \brief Copies all selected and visible objects to the paste buffer.
+ *
+ * \return true if any objects have been removed.
  */
 void
 AddSelectedToBuffer (BufferType *Buffer, Coord X, Coord Y, bool LeaveSelected)
@@ -460,11 +469,13 @@ AddSelectedToBuffer (BufferType *Buffer, Coord X, Coord Y, bool LeaveSelected)
   ExtraFlag = 0;
 }
 
-/* ---------------------------------------------------------------------------
- * loads element data from file/library into buffer
- * parse the file with disabled 'PCB mode' (see parser)
- * returns false on error
- * if successful, update some other stuff and reposition the pastebuffer
+/*!
+ * \brief Loads element data from file/library into buffer.
+ *
+ * Parse the file with disabled 'PCB mode' (see parser).
+ *
+ * \return false on error, if successful, update some other stuff and
+ * reposition the pastebuffer.
  */
 bool
 LoadElementToBuffer (BufferType *Buffer, char *Name, bool FromFile)
@@ -518,22 +529,6 @@ LoadElementToBuffer (BufferType *Buffer, char *Name, bool FromFile)
 }
 
 
-/*---------------------------------------------------------------------------
- * Searches for the given element by "footprint" name, and loads it
- * into the buffer.
- */
-
-/* Figuring out which library entry is the one we want is a little
-   tricky.  For file-based footprints, it's just a matter of finding
-   the first match in the search list.  For m4-based footprints you
-   need to know what magic to pass to the m4 functions.  Fortunately,
-   the footprint needed is determined when we build the m4 libraries
-   and stored as a comment in the description, so we can search for
-   that to find the magic we need.  We use a hash to store the
-   corresponding footprints and pointers to the library tree so we can
-   quickly find the various bits we need to load a given
-   footprint.  */
-
 typedef struct {
   char *footprint;
   int footprint_allocated;
@@ -558,9 +553,12 @@ clear_footprint_hash ()
   footprint_hash_size = 0;
 }
 
-/* Used to sort footprint pointer entries.  Note we include the index
-   numbers so that same-named footprints are sorted by the library
-   search order.  */
+/*!
+ * \brief Used to sort footprint pointer entries.
+ *
+ * \note We include the index numbers so that same-named footprints are
+ * sorted by the library search order.
+ */
 static int
 footprint_hash_cmp (const void *va, const void *vb)
 {
@@ -663,6 +661,21 @@ make_footprint_hash ()
 */
 }
 
+/*!
+ * \brief Searches for the given element by "footprint" name, and loads
+ * it into the buffer.
+ *
+ * Figuring out which library entry is the one we want is a little
+ * tricky.  For file-based footprints, it's just a matter of finding
+ * the first match in the search list.  For m4-based footprints you
+ * need to know what magic to pass to the m4 functions.  Fortunately,
+ * the footprint needed is determined when we build the m4 libraries
+ * and stored as a comment in the description, so we can search for
+ * that to find the magic we need.  We use a hash to store the
+ * corresponding footprints and pointers to the library tree so we can
+ * quickly find the various bits we need to load a given
+ * footprint.
+ */
 FootprintHashEntry *
 search_footprint_hash (const char *footprint)
 {
@@ -693,7 +706,11 @@ search_footprint_hash (const char *footprint)
   return NULL;
 }
 
-/* Returns zero on success, non-zero on error.  */
+/*!
+ * \brief .
+ *
+ * \return zero on success, non-zero on error.
+ */
 int
 LoadFootprintByName (BufferType *Buffer, char *Footprint)
 {
@@ -791,6 +808,9 @@ into the footprint as well.  The footprint remains in the paste buffer.
 
 %end-doc */
 
+/*!
+ * \brief This action is called from ActionElementAddIf().
+ */
 int
 LoadFootprint (int argc, char **argv, Coord x, Coord y)
 {
@@ -833,9 +853,8 @@ LoadFootprint (int argc, char **argv, Coord x, Coord y)
   return 0;
 }
 
-/*---------------------------------------------------------------------------
- *
- * break buffer element into pieces
+/*!
+ * \brief Break buffer element into pieces.
  */
 bool
 SmashBufferElement (BufferType *Buffer)
@@ -911,9 +930,10 @@ SmashBufferElement (BufferType *Buffer)
   return (true);
 }
 
-/*---------------------------------------------------------------------------
+/*!
+ * \brief See if a polygon is a rectangle.
  *
- * see if a polygon is a rectangle.  If so, canonicalize it.
+ * If so, canonicalize it.
  */
 
 static int
@@ -948,9 +968,8 @@ polygon_is_rectangle (PolygonType *poly)
   return 0;
 }
 
-/*---------------------------------------------------------------------------
- *
- * convert buffer contents into an element
+/*!
+ * \brief Convert buffer contents into an element.
  */
 bool
 ConvertBufferToElement (BufferType *Buffer)
@@ -1115,10 +1134,11 @@ ConvertBufferToElement (BufferType *Buffer)
   return (true);
 }
 
-/* ---------------------------------------------------------------------------
- * load PCB into buffer
- * parse the file with enabled 'PCB mode' (see parser)
- * if successful, update some other stuff
+/*!
+ * \brief Load PCB into buffer.
+ *
+ * Parse the file with enabled 'PCB mode' (see parser).
+ * If successful, update some other stuff.
  */
 bool
 LoadLayoutToBuffer (BufferType *Buffer, char *Filename)
@@ -1231,6 +1251,8 @@ ScaleBuffer (BufferType *Buffer, BYTE Amount)
 
 /* ---------------------------------------------------------------------------
  * rotates the contents of the pastebuffer
+/*!
+ * \brief Rotates the contents of the pastebuffer.
  */
 void
 RotateBuffer (BufferType *Buffer, BYTE Number)
@@ -1458,8 +1480,8 @@ ActionFreeRotateBuffer(int argc, char **argv, Coord x, Coord y)
   return 0;
 }
 
-/* ---------------------------------------------------------------------------
- * initializes the buffers by allocating memory
+/*!
+ * \brief Initializes the buffers by allocating memory.
  */
 void
 InitBuffers (void)
@@ -1490,7 +1512,7 @@ MirrorBuffer (BufferType *Buffer)
       Message (_("You can't mirror a buffer that has elements!\n"));
       return;
     }
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     {
       LayerType *layer = Buffer->Data->Layer + i;
       if (layer->TextN)
@@ -1541,8 +1563,8 @@ MirrorBuffer (BufferType *Buffer)
 }
 
 
-/* ---------------------------------------------------------------------------
- * flip components/tracks from one side to the other
+/*!
+ * \brief Flip components/tracks from one side to the other.
  */
 static void
 SwapBuffer (BufferType *Buffer)
@@ -1667,9 +1689,9 @@ SwapBuffer (BufferType *Buffer)
   SetCrosshairRangeToBuffer ();
 }
 
-/* ----------------------------------------------------------------------
- * moves the passed object to the passed buffer and removes it
- * from its original place
+/*!
+ * \brief Moves the passed object to the passed buffer and removes it
+ * from its original place.
  */
 void *
 MoveObjectToBuffer (DataType *Destination, DataType *Src,
@@ -1681,8 +1703,8 @@ MoveObjectToBuffer (DataType *Destination, DataType *Src,
   return (ObjectOperation (&MoveBufferFunctions, Type, Ptr1, Ptr2, Ptr3));
 }
 
-/* ----------------------------------------------------------------------
- * Adds the passed object to the passed buffer
+/*!
+ * \brief Adds the passed object to the passed buffer.
  */
 void *
 CopyObjectToBuffer (DataType *Destination, DataType *Src,

@@ -44,15 +44,15 @@
      |  gui code in gui-top-window.c and group code in misc.c must agree
      |  on what layer is what!
    */
-#define	LAYER_BUTTON_SILK			MAX_LAYER
-#define	LAYER_BUTTON_RATS			(MAX_LAYER + 1)
+#define LAYER_BUTTON_SILK     (MAX_LAYER)
+#define LAYER_BUTTON_RATS     (MAX_LAYER + 1)
 #define	N_SELECTABLE_LAYER_BUTTONS	(LAYER_BUTTON_RATS + 1)
 
-#define LAYER_BUTTON_PINS			(MAX_LAYER + 2)
-#define LAYER_BUTTON_VIAS			(MAX_LAYER + 3)
-#define LAYER_BUTTON_FARSIDE		(MAX_LAYER + 4)
-#define LAYER_BUTTON_MASK			(MAX_LAYER + 5)
-#define N_LAYER_BUTTONS				(MAX_LAYER + 6)
+#define LAYER_BUTTON_PINS     (MAX_ALL_LAYER)
+#define LAYER_BUTTON_VIAS     (MAX_ALL_LAYER + 1)
+#define LAYER_BUTTON_FARSIDE  (MAX_ALL_LAYER + 2)
+#define LAYER_BUTTON_MASK     (MAX_ALL_LAYER + 3)
+#define N_LAYER_BUTTONS       (MAX_ALL_LAYER + 4)
 
   /* Go from from the grid units in use (millimeters or mils) to PCB units
      |  and back again.
@@ -146,7 +146,10 @@ typedef struct
     keyref_window_height,
     library_window_width,
     library_window_height,
-    netlist_window_height, history_size, settings_mode;
+    netlist_window_width,
+    netlist_window_height,
+    history_size,
+    settings_mode;
 
   bool is_up;
 }
@@ -347,6 +350,7 @@ void ghid_notify_filename_changed (void);
 void ghid_install_accel_groups (GtkWindow *window, GhidGui *gui);
 void ghid_remove_accel_groups (GtkWindow *window, GhidGui *gui);
 void make_route_style_buttons (GHidRouteStyleSelector *rss);
+void layer_process (gchar **color_string, char **text, int *set, int i);
 
 /* gui-utils.c
 */

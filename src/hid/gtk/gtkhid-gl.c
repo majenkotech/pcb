@@ -15,12 +15,19 @@
  * in order to get prototypes:
  *   http://www.opengl.org/registry/ABI/
  */
-
 #define GL_GLEXT_PROTOTYPES 1
-#ifdef HAVE_OPENGL_GL_H
-#   include <OpenGL/gl.h>
+
+/* This follows autoconf's recommendation for the AX_CHECK_GL macro
+   https://www.gnu.org/software/autoconf-archive/ax_check_gl.html */
+#if defined HAVE_WINDOWS_H && defined _WIN32
+#  include <windows.h>
+#endif
+#if defined HAVE_GL_GL_H
+#  include <GL/gl.h>
+#elif defined HAVE_OPENGL_GL_H
+#  include <OpenGL/gl.h>
 #else
-#   include <GL/gl.h>
+#  error autoconf couldnt find gl.h
 #endif
 
 #include <gtk/gtkgl.h>
@@ -138,7 +145,7 @@ ghid_set_layer (const char *name, int group, int empty)
       for (idx = 0; idx < n-1; idx ++)
 	{
 	  int ni = PCB->LayerGroups.Entries[group][idx];
-	  if (ni >= 0 && ni < max_copper_layer + 2
+	  if (ni >= 0 && ni < max_copper_layer + SILK_LAYER
 	      && PCB->Data->Layer[ni].On)
 	    break;
 	}
@@ -148,7 +155,7 @@ ghid_set_layer (const char *name, int group, int empty)
   end_subcomposite ();
   start_subcomposite ();
 
-  if (idx >= 0 && idx < max_copper_layer + 2)
+  if (idx >= 0 && idx < max_copper_layer + SILK_LAYER)
     {
       priv->trans_lines = true;
       return PCB->Data->Layer[idx].On;

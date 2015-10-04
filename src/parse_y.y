@@ -46,6 +46,7 @@
 #include "data.h"
 #include "error.h"
 #include "file.h"
+#include "layerflags.h"
 #include "mymem.h"
 #include "misc.h"
 #include "parse_l.h"
@@ -65,7 +66,7 @@ static	PolygonType	*Polygon;
 static	SymbolType	*Symbol;
 static	int		pin_num;
 static	LibraryMenuType	*Menu;
-static	bool			LayerFlag[MAX_LAYER + 2];
+static	bool			LayerFlag[MAX_ALL_LAYER];
 
 extern	char		*yytext;		/* defined by LEX */
 extern	PCBType		*yyPCB;
@@ -168,7 +169,7 @@ parsepcb
 					Message(_("illegal fileformat\n"));
 					YYABORT;
 				}
-				for (i = 0; i < MAX_LAYER + 2; i++)
+				for (i = 0; i < MAX_ALL_LAYER; i++)
 					LayerFlag[i] = false;
 				yyFont = &yyPCB->Font;
 				yyData = yyPCB->Data;
@@ -252,7 +253,7 @@ parsedata
 					Message(_("illegal fileformat\n"));
 					YYABORT;
 				}
-				for (i = 0; i < MAX_LAYER + 2; i++)
+				for (i = 0; i < MAX_ALL_LAYER; i++)
 					LayerFlag[i] = false;
 				yyData->LayerN = 0;
 			}
@@ -842,7 +843,7 @@ rats
 /* %start-doc pcbfile Layer
 
 @syntax
-Layer (LayerNum "Name") (
+Layer (LayerNum "Name" "Flags") (
 @ @ @ @dots{} contents @dots{}
 )
 @end syntax
@@ -851,9 +852,21 @@ Layer (LayerNum "Name") (
 @item LayerNum
 The layer number.  Layers are numbered sequentially, starting with 1.
 The last two layers (9 and 10 by default) are solder-side silk and
-component-side silk, in that order.
+component-side silk, in that order. The two silk layers also mark top and
+bottom side; the layer group where the solder-side silk layer is member in
+is the solder side group. Analogous for the other side.
 @item Name
 The layer name.
+
+For layout files predating layer flags the name also defines
+the layer type in some situations. For example, a layer named @emph{outline}
+was considered to be the layer defining the extents of the board.
+@item Flags
+Layer flags. Currently this is the layer type, like @emph{copper}, @emph{silk}
+or @emph{outline}. For a complete list see layertype_name[] in layerflags.c.
+
+With layer flags missing, the type of layer is guessed at load time, mostly by
+the layer name. This mechanism ensures compatibility with older layouts.
 @item contents
 The contents of the layer, which may include attributes, lines, arcs, rectangles,
 text, and polygons.
@@ -865,7 +878,7 @@ layer
 			/* name */
 		: T_LAYER '(' INTEGER STRING opt_string ')' '('
 			{
-				if ($3 <= 0 || $3 > MAX_LAYER + 2)
+				if ($3 <= 0 || $3 > MAX_ALL_LAYER)
 				{
 					yyerror("Layernumber out of range");
 					YYABORT;
@@ -877,11 +890,15 @@ layer
 				}
 				Layer = &yyData->Layer[$3-1];
 
-					/* memory for name is already allocated */
+                                /* memory for name is already allocated */
 				Layer->Name = $4;
                          	if (Layer->Name == NULL)
                                    Layer->Name = strdup("");
 				LayerFlag[$3-1] = true;
+                                if ($5)
+                                  Layer->Type = string_to_layertype ($5, yyerror);
+                                else
+                                  Layer->Type = guess_layertype ($4, $3, yyData);
 			}
 		  layerdata ')'
 		;
@@ -1946,7 +1963,7 @@ number
 measure
 		/* Default unit (no suffix) is cmil */
 		: number	{ do_measure(&$$, $1, MIL_TO_COORD ($1) / 100.0, 0); }
-		| number T_UMIL	{ M ($$, $1, MIL_TO_COORD ($1) / 100000.0); }
+		| number T_UMIL	{ M ($$, $1, MIL_TO_COORD ($1) / 1000000.0); }
 		| number T_CMIL	{ M ($$, $1, MIL_TO_COORD ($1) / 100.0); }
 		| number T_MIL	{ M ($$, $1, MIL_TO_COORD ($1)); }
 		| number T_IN	{ M ($$, $1, INCH_TO_COORD ($1)); }

@@ -31,9 +31,6 @@
 #include "config.h"
 #endif
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>  /* setlocale() and LC_ALL */
-#endif
 #include <stdlib.h>
 #ifdef HAVE_STRING_H
 #include <string.h>
@@ -57,6 +54,7 @@
 #include "lrealpath.h"
 #include "free_atexit.h"
 #include "polygon.h"
+#include "gettext.h"
 #include "pcb-printf.h"
 
 #include "hid/common/actions.h"
@@ -66,10 +64,6 @@
 
 #ifdef HAVE_DBUS
 #include "dbus.h"
-#endif
-
-#if ENABLE_NLS
-#include <libintl.h>
 #endif
 
 #ifdef HAVE_LIBDMALLOC
@@ -1887,9 +1881,13 @@ main (int argc, char *argv[])
   InitPaths (argv[0]);
 
   bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
-  textdomain(GETTEXT_PACKAGE);
-  bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
-  setlocale(LC_ALL,"");
+  textdomain (GETTEXT_PACKAGE);
+  bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+
+#ifdef ENABLE_NLS
+  setlocale (LC_ALL, "");
+  setlocale (LC_NUMERIC, "C");
+#endif
 
   srand ( time(NULL) ); /* Set seed for rand() */
 
@@ -2049,8 +2047,6 @@ main (int argc, char *argv[])
 
   if (gui->printer || gui->exporter)
     {
-      // Workaround to fix batch output for non-C locales
-      setlocale(LC_NUMERIC,"C");
       gui->do_export (0);
       exit (0);
     }

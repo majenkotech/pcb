@@ -150,6 +150,8 @@ selection_changed_cb (GtkTreeSelection *selection, gpointer user_data)
   SetChangedFlag (true);
   IncrementUndoSerialNumber ();
   Draw();
+
+  CenterDisplay (violation->x_coord, violation->y_coord, false);
 }
 
 static void
@@ -167,9 +169,9 @@ row_activated_cb (GtkTreeView *view, GtkTreePath *path,
   if (violation == NULL)
     return;
 
-  CenterDisplay (violation->x_coord, violation->y_coord);
+  CenterDisplay (violation->x_coord, violation->y_coord, true);
+  gtk_window_present (GTK_WINDOW (gport->top_window));
 }
-
 
 enum
 {
@@ -771,9 +773,8 @@ ghid_drc_window_show (gboolean raise)
 		    G_CALLBACK (drc_window_configure_event_cb), NULL);
   gtk_window_set_title (GTK_WINDOW (drc_window), _("PCB DRC"));
   gtk_window_set_wmclass (GTK_WINDOW (drc_window), "PCB_DRC", "PCB");
-  gtk_window_set_default_size (GTK_WINDOW (drc_window),
-			       ghidgui->drc_window_width,
-			       ghidgui->drc_window_height);
+  gtk_window_resize (GTK_WINDOW (drc_window),
+                     ghidgui->drc_window_width, ghidgui->drc_window_height);
 
   vbox = gtk_vbox_new (FALSE, 0);
   gtk_container_add (GTK_CONTAINER (drc_window), vbox);
@@ -793,6 +794,11 @@ ghid_drc_window_show (gboolean raise)
 
   drc_list = gtk_tree_view_new_with_model (GTK_TREE_MODEL (drc_list_model));
   gtk_container_add (GTK_CONTAINER (scrolled_window), drc_list);
+
+  gtk_widget_set_tooltip_text (drc_list,
+                               "Single-click to locate the violation,\n"
+                               "double-click to also warp the mouse\n"
+                               "pointer there.");
 
   gtk_tree_view_set_rules_hint (GTK_TREE_VIEW (drc_list), TRUE);
   g_signal_connect (gtk_tree_view_get_selection (GTK_TREE_VIEW (drc_list)), "changed",

@@ -1,31 +1,35 @@
-/*
- *                            COPYRIGHT
+/*!
+ * \file src/action.c
  *
- *  PCB, interactive printed circuit board design
- *  Copyright (C) 1994,1995,1996 Thomas Nau
- *  Copyright (C) 1997, 1998, 1999, 2000, 2001 Harry Eaton
+ * \brief Action routines for output window.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * <hr>
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * <h1><b>Copyright.</b></h1>\n
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * PCB, interactive printed circuit board design
  *
- *  Contact addresses for paper mail and Email:
- *  Harry Eaton, 6697 Buttonhole Ct, Columbia, MD 21044, USA
- *  haceaton@aplcomm.jhuapl.edu
+ * Copyright (C) 1994,1995,1996 Thomas Nau
  *
- */
-
-/* action routines for output window
+ * Copyright (C) 1997, 1998, 1999, 2000, 2001 Harry Eaton
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ * Contact addresses for paper mail and Email:
+ * Harry Eaton, 6697 Buttonhole Ct, Columbia, MD 21044, USA
+ * haceaton@aplcomm.jhuapl.edu
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,7 +43,6 @@
 #include "autoroute.h"
 #include "buffer.h"
 #include "change.h"
-#include "command.h"
 #include "copy.h"
 #include "create.h"
 #include "crosshair.h"
@@ -471,8 +474,8 @@ static void ChangeFlag (char *, char *, int, char *);
 
 #ifdef HAVE_LIBSTROKE
 
-/* ---------------------------------------------------------------------------
- * FinishStroke - try to recognize the stroke sent
+/*!
+ * \brief Try to recognize the stroke sent.
  */
 void
 FinishStroke (void)
@@ -560,8 +563,8 @@ FinishStroke (void)
 }
 #endif
 
-/* ---------------------------------------------------------------------------
- * Clear warning color from pins/pads
+/*!
+ * \brief Clear warning color from pins/pads.
  */
 static void
 ClearWarnings ()
@@ -588,7 +591,8 @@ ClearWarnings ()
   Draw ();
 }
 
-/* ---------------------------------------------------------------------------
+/*!
+ * \brief Click callback.
  *
  * This is called a clicktime after a mouse down, to we can distinguish
  * between short clicks (typically: select or create something) and long
@@ -646,9 +650,8 @@ click_cb (hidval hv)
     }
 }
 
-/* ---------------------------------------------------------------------------
- *
- * This is typically called when the mouse has moved or the mouse
+/*!
+ * \brief This is typically called when the mouse has moved or the mouse
  * button was released.
  */
 static void
@@ -721,9 +724,6 @@ ReleaseMode (void)
   saved_mode = false;
 }
 
-/* ---------------------------------------------------------------------------
- * get function ID of passed string
- */
 #define HSIZE 257
 static char function_hash[HSIZE];
 static int hash_initted = 0;
@@ -742,6 +742,9 @@ hashfunc(String s)
   return i;
 }
 
+/*!
+ * \brief Get function ID of passed string.
+ */
 static int
 GetFunctionID (String Ident)
 {
@@ -790,9 +793,10 @@ GetFunctionID (String Ident)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * set new coordinates if in 'RECTANGLE' mode
- * the cursor shape is also adjusted
+/*!
+ * \brief Set new coordinates if in 'RECTANGLE' mode.
+ *
+ * The cursor shape is also adjusted.
  */
 static void
 AdjustAttachedBox (void)
@@ -814,8 +818,9 @@ AdjustAttachedBox (void)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * adjusts the objects which are to be created like attached lines...
+/*!
+ * \brief Adjusts the objects which are to be created like attached
+ * lines.
  */
 void
 AdjustAttachedObjects (void)
@@ -862,8 +867,8 @@ AdjustAttachedObjects (void)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * creates points of a line
+/*!
+ * \brief Creates points of a line.
  */
 static void
 NotifyLine (void)
@@ -933,8 +938,8 @@ NotifyLine (void)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * create first or second corner of a marked block
+/*!
+ * \brief Create first or second corner of a marked block.
  */
 static void
 NotifyBlock (void)
@@ -958,14 +963,15 @@ NotifyBlock (void)
 }
 
 
-/* ---------------------------------------------------------------------------
- *
- * This is called after every mode change, like mouse button pressed,
+/*!
+ * \brief This is called after every mode change, like mouse button pressed,
  * mouse button released, dragging something started or a different tool
- * selected. It does what's appropriate for the current mode setting.
+ * selected.
+ *
+ * It does what's appropriate for the current mode setting.
  * This can also mean creation of an object at the current crosshair location.
  *
- * new created objects are added to the create undo list of course
+ * New created objects are added to the create undo list of course.
  */
 static void
 NotifyMode (void)
@@ -2060,11 +2066,24 @@ ActionSetThermal (int argc, char **argv, Coord x, Coord y)
   int type, kind;
   int err = 0;
 
-  if (function && *function && style && *style)
+  if (function && *function)
     {
       bool absolute;
 
-      kind = GetValue (style, NULL, &absolute);
+      if ( ! style || ! *style)
+	{
+	  kind = PCB->ThermStyle;
+	  absolute = true;
+	}
+      else
+	kind = GetUnitlessValue (style, &absolute);
+
+      /* To allow relative values we could search for the first selected
+	 item and make 'kind' relative to that, but that's not too useful
+	 and requires quite some code. For example there's no
+	 GetFirstSelectedPin() function available. Let's postpone this
+	 functionality, there are more urgent things to do. */
+
       if (absolute)
 	switch (GetFunctionID (function))
 	  {
@@ -2094,18 +2113,21 @@ ActionSetThermal (int argc, char **argv, Coord x, Coord y)
 	  }
       else
 	err = 1;
-      if (!err)
-	return 0;
     }
+  else
+    err = 1;
 
-  AFAIL (setthermal);
+  if (err)
+    AFAIL (setthermal);
+
+  return 0;
 }
 
-/* ---------------------------------------------------------------------------
- * !!! no action routine !!!
+/*!
+ * \brief Event handler to set the cursor according to the X pointer
+ * position called from inside main.c.
  *
- * event handler to set the cursor according to the X pointer position
- * called from inside main.c
+ * \warning !!! no action routine !!!
  */
 void
 EventMoveCrosshair (int ev_x, int ev_y)
@@ -2943,11 +2965,13 @@ ActionDisplay (int argc, char **argv, Coord childX, Coord childY)
 	  break;
 	}
     }
+  else
+    err = 1;
 
-  if (!err)
-    return 0;
+  if (err)
+    AFAIL (display);
 
-  AFAIL (display);
+  return 0;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -3800,7 +3824,8 @@ ActionAddRats (int argc, char **argv, Coord x, Coord y)
 	      DrawRat (shorty);
 	      Draw ();
 	      CenterDisplay ((shorty->Point2.X + shorty->Point1.X) / 2,
-			     (shorty->Point2.Y + shorty->Point1.Y) / 2);
+			     (shorty->Point2.Y + shorty->Point1.Y) / 2,
+                             false);
 	    }
 	  break;
 	}
@@ -4296,6 +4321,7 @@ ActionMinMaskGap (int argc, char **argv, Coord x, Coord y)
   char *units = ARG (2);
   bool absolute;
   Coord value;
+  Coord thickness;
   int flags;
 
   if (!function)
@@ -4315,19 +4341,24 @@ ActionMinMaskGap (int argc, char **argv, Coord x, Coord y)
   {
     PIN_LOOP (element);
     {
-      if (!TEST_FLAGS (flags, pin))
+      if (!TEST_FLAGS (flags, pin) || ! pin->Mask)
 	continue;
-      if (pin->Mask < pin->Thickness + value)
+
+	thickness = pin->DrillingHole;
+      if (pin->Thickness > thickness)
+	thickness = pin->Thickness;
+      thickness += value;
+
+      if (pin->Mask < thickness)
 	{
-	  ChangeObjectMaskSize (PIN_TYPE, element, pin, 0,
-				pin->Thickness + value, 1);
+	  ChangeObjectMaskSize (PIN_TYPE, element, pin, 0, thickness, 1);
 	  RestoreUndoSerialNumber ();
 	}
     }
     END_LOOP;
     PAD_LOOP (element);
     {
-      if (!TEST_FLAGS (flags, pad))
+      if (!TEST_FLAGS (flags, pad) || ! pad->Mask)
 	continue;
       if (pad->Mask < pad->Thickness + value)
 	{
@@ -4341,11 +4372,17 @@ ActionMinMaskGap (int argc, char **argv, Coord x, Coord y)
   END_LOOP;
   VIA_LOOP (PCB->Data);
   {
-    if (!TEST_FLAGS (flags, via))
+    if (!TEST_FLAGS (flags, via) || ! via->Mask)
       continue;
-    if (via->Mask && via->Mask < via->Thickness + value)
+
+    thickness = via->DrillingHole;
+    if (via->Thickness > thickness)
+      thickness = via->Thickness;
+    thickness += value;
+
+    if (via->Mask < thickness)
       {
-	ChangeObjectMaskSize (VIA_TYPE, via, 0, 0, via->Thickness + value, 1);
+	ChangeObjectMaskSize (VIA_TYPE, via, 0, 0, thickness, 1);
 	RestoreUndoSerialNumber ();
       }
   }
@@ -5711,10 +5748,9 @@ ActionSaveTo (int argc, char **argv, Coord x, Coord y)
   char *function;
   char *name;
 
-  function = argv[0];
-  name = argv[1];
-
-  if (strcasecmp (function, "Layout") == 0)
+  function = ARG (0);
+  
+  if ( ! function || strcasecmp (function, "Layout") == 0)
     {
       if (SavePCB (PCB->Filename) == 0)
         SetChangedFlag (false);
@@ -5723,6 +5759,8 @@ ActionSaveTo (int argc, char **argv, Coord x, Coord y)
 
   if (argc != 2)
     AFAIL (saveto);
+
+  name = argv[1];
 
   if (strcasecmp (function, "LayoutAs") == 0)
     {
@@ -5961,7 +5999,7 @@ ActionNew (int argc, char **argv, Coord x, Coord y)
 
       ResetStackAndVisibility ();
       SetCrosshairRange (0, 0, PCB->MaxWidth, PCB->MaxHeight);
-      CenterDisplay (PCB->MaxWidth / 2, PCB->MaxHeight / 2);
+      CenterDisplay (PCB->MaxWidth / 2, PCB->MaxHeight / 2, false);
       Redraw ();
 
       hid_action ("PCBChanged");
@@ -5971,8 +6009,8 @@ ActionNew (int argc, char **argv, Coord x, Coord y)
   return 1;
 }
 
-/* ---------------------------------------------------------------------------
- * no operation, just for testing purposes
+/*!
+ * \brief No operation, just for testing purposes.
  * syntax: Bell(volume)
  */
 void
@@ -7038,7 +7076,12 @@ ActionElementList (int argc, char **argv, Coord x, Coord y)
   ElementType *e = NULL;
   char *refdes, *value, *footprint, *old;
   char *args[3];
-  char *function = argv[0];
+  char *function;
+
+  if (argc < 1)
+    AFAIL (elementlist);
+
+  function = argv[0];
 
 #ifdef DEBUG
   printf("Entered ActionElementList, executing function %s\n", function);
@@ -7338,12 +7381,15 @@ pcb_spawnvp (char **argv)
 }
 
 /* ---------------------------------------------------------------- */
-/* 
- * Creates a new temporary file name.  Hopefully the operating system
- * provides a mkdtemp() function to securily create a temporary
- * directory with mode 0700.  If so then that directory is created and
- * the returned string is made up of the directory plus the name
- * variable.  For example:
+
+/*! 
+ * \brief Creates a new temporary file name.
+ * 
+ * Hopefully the operating system provides a mkdtemp() function to
+ * securily create a temporary directory with mode 0700.\n
+ * If so then that directory is created and the returned string is made
+ * up of the directory plus the name variable.\n
+ * For example:\n
  *
  * tempfile_name_new ("myfile") might return
  * "/var/tmp/pcb.123456/myfile".
@@ -7434,10 +7480,12 @@ tempfile_name_new (char * name)
 }
 
 /* ---------------------------------------------------------------- */
-/*
- * Unlink a temporary file.  If we have mkdtemp() then our temp file
- * lives in a temporary directory and we need to remove that directory
- * too.
+
+/*!
+ * \brief Unlink a temporary file.
+ * 
+ * If we have mkdtemp() then our temp file lives in a temporary
+ * directory and we need to remove that directory too.
  */
 static int
 tempfile_unlink (char * name)
@@ -7701,9 +7749,9 @@ ActionImport (int argc, char **argv, Coord x, Coord y)
 	  return 1;
 	}
 
-      pcb_sprintf (buf, "%$ms", x);
+      pcb_snprintf (buf, sizeof (buf), "%$ms", x);
       AttributePut (PCB, "import::newX", buf);
-      pcb_sprintf (buf, "%$ms", y);
+      pcb_snprintf (buf, sizeof (buf), "%$ms", y);
       AttributePut (PCB, "import::newY", buf);
       return 0;
     }

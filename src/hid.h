@@ -197,20 +197,55 @@ extern "C"
   extern char *program_directory;
   extern char *program_basename;
 
+/* These are used for set_layer(). */
 #define SL_0_SIDE	0x0000
 #define SL_TOP_SIDE	0x0001
 #define SL_BOTTOM_SIDE	0x0002
-#define SL_SILK		0x0010
-#define SL_MASK		0x0020
-#define SL_PDRILL	0x0030
-#define SL_UDRILL	0x0040
-#define SL_PASTE	0x0050
-#define SL_INVISIBLE	0x0060
-#define SL_FAB		0x0070
-#define SL_ASSY		0x0080
-#define SL_RATS		0x0090
+#define SL_INNER_SIDE   0x0004
+
+/*!
+ * These are types of "layers" without direct physical representation. Their
+ * content can be derived from other layers and element data.
+ *
+ * These values are used by DrawEverything() in draw.c to ask the active GUI
+ * or exporter to act on these layers. Depending on the GUI/exporter they
+ * result in a per-layer file, in some additional graphics or just nothing.
+ */
+#define SL_SILK         0x0010  /* physical layer, deprecated, use LT_SILK */
+#define SL_MASK         0x0020
+#define SL_PDRILL       0x0030
+#define SL_UDRILL       0x0040
+#define SL_PASTE        0x0050
+#define SL_INVISIBLE    0x0060
+#define SL_FAB          0x0070
+#define SL_ASSY         0x0080
+#define SL_RATS         0x0090
+
 /* Callers should use this.  */
 #define SL(type,side) (~0xfff | SL_##type | SL_##side##_SIDE)
+
+/*!
+ * These are layers with direct physical representation, like copper, dye
+ * or to be milled paths. Their data can't be derived from other layers or
+ * element data.
+ *
+ * To add more layer types, add them to the list here and in layerflags.c.
+ * Order of entries in both lists must be the same.
+ */
+typedef enum
+{
+  LT_COPPER = 0,
+  LT_SILK,
+  LT_MASK,           /**< Complements SL_MASK above. */
+  LT_PASTE,          /**< Complements SL_PASTE above. */
+  LT_OUTLINE,        /**< Board outline; exists only once. */
+  LT_ROUTE,
+  LT_KEEPOUT,
+  LT_FAB,            /**< Complements SL_FAB above. */
+  LT_ASSY,           /**< Complements SL_ASSY above. */
+  LT_NOTES,
+  LT_NUM_LAYERTYPES  /* must be the last one */
+} LayertypeType;
 
 /* File Watch flags */
 /* Based upon those in dbus/dbus-connection.h */
@@ -348,9 +383,11 @@ typedef enum
        screen may be adjusted so that the cursor and the crosshair are
        at the same point on the screen.  */
     void (*set_crosshair) (int x_, int y_, int cursor_action_);
-#define HID_SC_DO_NOTHING	0
-#define HID_SC_WARP_POINTER	1
-#define HID_SC_PAN_VIEWPORT	2
+#define HID_SC_DO_NOTHING                          0
+#define HID_SC_WARP_POINTER	                       1
+#define HID_SC_PAN_VIEWPORT                        2
+#define HID_SC_CENTER_IN_VIEWPORT                  3
+#define HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER 4
 
     /* Causes func to be called at some point in the future.  Timers are
        only good for *one* call; if you want it to repeat, add another

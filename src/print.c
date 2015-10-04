@@ -221,9 +221,12 @@ PrintFab (hidGC gc)
   DrillInfoType *AllDrills;
   int i, n, yoff, total_drills = 0, ds = 0;
   time_t currenttime;
+  const char *utcFmt = "%c UTC";
   char utcTime[64];
+#ifdef ENABLE_NLS
+  char *oldlocale;
+#endif
   AllDrills = GetDrillInfo (PCB->Data);
-  RoundDrillInfo (AllDrills, MIL_TO_COORD(1));
   yoff = -TEXT_LINE;
 
   /* count how many drill description lines will be needed */
@@ -272,10 +275,10 @@ PrintFab (hidGC gc)
 	}
       gui->graphics->set_color (gc, PCB->ElementColor);
       text_at (gc, MIL_TO_COORD(450), yoff, MIL_TO_COORD(2), "%0.3f",
-	       COORD_TO_INCH(drill->DrillSize) + 0.0004);
+	       COORD_TO_INCH(drill->DrillSize));
       if (plated_sym != -1 && unplated_sym != -1)
 	text_at (gc, MIL_TO_COORD(450), yoff + TEXT_LINE, MIL_TO_COORD(2), "%0.3f",
-	         COORD_TO_INCH(drill->DrillSize) + 0.0004);
+	         COORD_TO_INCH(drill->DrillSize));
       yoff -= TEXT_LINE;
       total_drills += drill->PinCount;
       total_drills += drill->ViaCount;
@@ -291,12 +294,15 @@ PrintFab (hidGC gc)
 	   "There are %d different drill sizes used in this layout, %d holes total",
 	   AllDrills->DrillN, total_drills);
   /* Create a portable timestamp. */
+#ifdef ENABLE_NLS
+  oldlocale = setlocale (LC_TIME, "C");
+#endif
   currenttime = time (NULL);
-  {
-    /* avoid gcc complaints */
-    const char *fmt = "%c UTC";
-    strftime (utcTime, sizeof utcTime, fmt, gmtime (&currenttime));
-  }
+  strftime (utcTime, sizeof utcTime, utcFmt, gmtime (&currenttime));
+#ifdef ENABLE_NLS
+  setlocale (LC_TIME, oldlocale);
+#endif
+
   yoff = -TEXT_LINE;
   for (i = 0; i < max_copper_layer; i++)
     {

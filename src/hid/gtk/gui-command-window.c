@@ -33,7 +33,6 @@
 #include "gui.h"
 #include <gdk/gdkkeysyms.h>
 
-#include "command.h"
 #include "crosshair.h"
 
 #ifdef HAVE_LIBDMALLOC
@@ -120,15 +119,17 @@ static gchar *command_ref_text[] = {
   "\ttarget = {object | selectedelements | selected}\n",
   N_("\tFlip elements to the opposite side of the board.\n"),
   "\n",
-  "<b>togglethermal(target)\n",
-  "<b>setthermal(target)\n",
-  "<b>clearthermal(target)\n",
+  "<b>setthermal(target, style)\n",
   "\ttarget = {object | selectedpins | selectedvias | selected}\n",
-  N_("\tToggle, set or clear a thermal (on the current layer) to pins or vias.\n"),
+  "\tstyle  = {0 | 1 | 2 | 3 | 4 | 5}\n\n",
+  N_("\tSet or clear a thermal (on the current layer) to pins or vias.\n"
+     "\tIf 'style' is omitted, the layout's default style is taken. Setting\n"
+     "\tthermals to style 0 (zero) turns the thermals off.\n"),
   "\n",
-  "<b>loadvendor(target)\n",
+  "<b>loadvendorfrom(filename)\n",
+  "<b>unloadvendor()\n",
   "\ttarget = [filename]\n",
-  N_("\tLoad a vendor file.  If 'filename' omitted, pop up file select dialog.\n"),
+  N_("\tLoad a vendor file.  If 'filename' is omitted, pop up a file select dialog.\n"),
 };
 
 

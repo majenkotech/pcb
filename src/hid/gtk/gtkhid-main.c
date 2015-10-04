@@ -27,27 +27,15 @@
 static void
 pan_common (GHidPort *port)
 {
-  int event_x, event_y;
-
-  /* We need to fix up the PCB coordinates corresponding to the last
-  * event so convert it back to event coordinates temporarily. */
-  ghid_pcb_to_event_coords (gport->pcb_x, gport->pcb_y, &event_x, &event_y);
-
   /* Don't pan so far the board is completely off the screen */
   port->view.x0 = MAX (-port->view.width,  port->view.x0);
   port->view.y0 = MAX (-port->view.height, port->view.y0);
   port->view.x0 = MIN ( port->view.x0, PCB->MaxWidth);
   port->view.y0 = MIN ( port->view.y0, PCB->MaxHeight);
 
-  /* Fix up noted event coordinates to match where we clamped. Alternatively
-   * we could call ghid_note_event_location (NULL); to get a new pointer
-   * location, but this costs us an xserver round-trip (on X11 platforms)
-   */
-  ghid_event_to_pcb_coords (event_x, event_y, &gport->pcb_x, &gport->pcb_y);
-
   ghidgui->adjustment_changed_holdoff = TRUE;
-  gtk_range_set_value (GTK_RANGE (ghidgui->h_range), gport->view.x0);
-  gtk_range_set_value (GTK_RANGE (ghidgui->v_range), gport->view.y0);
+  gtk_range_set_value (GTK_RANGE (ghidgui->h_range), port->view.x0);
+  gtk_range_set_value (GTK_RANGE (ghidgui->v_range), port->view.y0);
   ghidgui->adjustment_changed_holdoff = FALSE;
 
   ghid_port_ranges_changed();
@@ -315,7 +303,9 @@ ghid_set_crosshair (int x, int y, int action)
     }
 
   if (action != HID_SC_PAN_VIEWPORT &&
-      action != HID_SC_WARP_POINTER)
+      action != HID_SC_WARP_POINTER &&
+      action != HID_SC_CENTER_IN_VIEWPORT &&
+      action != HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER)
     return;
 
   /* Find out where the drawing area is on the screen. gdk_display_get_pointer
@@ -324,9 +314,40 @@ ghid_set_crosshair (int x, int y, int action)
    */
   gdk_window_get_origin (gtk_widget_get_window (gport->drawing_area),
                          &offset_x, &offset_y);
+
   display = gdk_display_get_default ();
+  screen = gdk_display_get_default_screen (display);
 
   switch (action) {
+
+    case HID_SC_CENTER_IN_VIEWPORT:
+
+      // Center the viewport on the crosshair
+      ghid_pan_view_abs (gport->crosshair_x - gport->view.width / 2,
+                         gport->crosshair_y - gport->view.height / 2,
+                         0, 0);
+
+      break;
+
+    case HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER:
+
+      // Center the viewport on the crosshair
+      ghid_pan_view_abs (gport->crosshair_x - gport->view.width / 2,
+                         gport->crosshair_y - gport->view.height / 2,
+                         0, 0);
+  
+      // We do this to make sure gdk has an up-to-date idea of the widget
+      // coordinates so gdk_display_warp_pointer will go to the right spot.
+      gdk_window_process_all_updates ();
+
+      // Warp pointer to crosshair
+      ghid_pcb_to_event_coords (gport->crosshair_x, gport->crosshair_y,
+                                &widget_x, &widget_y);
+      gdk_display_warp_pointer (display, screen, widget_x + offset_x,
+                                widget_y + offset_y);
+
+      break;
+
     case HID_SC_PAN_VIEWPORT:
       /* Pan the board in the viewport so that the crosshair (who's location
        * relative on the board was set above) lands where the pointer is.
@@ -1428,6 +1449,9 @@ SwapSides (int argc, char **argv, Coord x, Coord y)
                              new_bottom_vis, new_bottom_vis);
     }
 
+  layer_process ( NULL, NULL, NULL, LAYER_BUTTON_SILK );
+  hid_action ("LayersChanged");
+
   return 0;
 }
 
@@ -1998,7 +2022,7 @@ ImportGUI (int argc, char **argv, Coord x, Coord y)
         printf("File selected = %s\n", name);
 #endif
 
-        sprintf (sname, "import::src%d", nsources);
+        snprintf (sname, sizeof (sname), "import::src%d", nsources);
         AttributePut (PCB, sname, name);
 
         g_free (name);
@@ -2096,6 +2120,7 @@ hid_gtk_init ()
   char * tmps;
   char * share_dir;
   char *loader_cache;
+  size_t buffer_size;
   FILE *loader_file;
 #endif
 
@@ -2103,16 +2128,14 @@ hid_gtk_init ()
   tmps = g_win32_get_package_installation_directory (PACKAGE "-" VERSION, NULL);
 #define REST_OF_PATH G_DIR_SEPARATOR_S "share" G_DIR_SEPARATOR_S PACKAGE
 #define REST_OF_CACHE G_DIR_SEPARATOR_S "loaders.cache"
-  share_dir = (char *) malloc(strlen(tmps) + 
-			  strlen(REST_OF_PATH) +
-			  1);
-  sprintf (share_dir, "%s%s", tmps, REST_OF_PATH);
+  buffer_size = strlen (tmps) + strlen (REST_OF_PATH) + 1;
+  share_dir = (char *)malloc (buffer_size);
+  snprintf (share_dir, buffer_size, "%s%s", tmps, REST_OF_PATH);
 
   /* Point to our gdk-pixbuf loader cache.  */
-  loader_cache = (char *) malloc (strlen (bindir) +
-				  strlen (REST_OF_CACHE) +
-				  1);
-  sprintf (loader_cache, "%s%s", bindir, REST_OF_CACHE);
+  buffer_size = strlen (bindir) + strlen (REST_OF_CACHE) + 1);
+  loader_cache = (char *)malloc (buffer_size);
+  snprintf (loader_cache, buffer_size, "%s%s", bindir, REST_OF_CACHE);
   loader_file = fopen (loader_cache, "r");
   if (loader_file)
     {

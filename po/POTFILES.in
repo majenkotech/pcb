@@ -43,6 +43,7 @@ src/hid/lesstif/dialogs.c
 src/hid/lpr/lpr.c
 src/hid/ps/ps.c
 src/hid/gtk/gui-trackball.c
+src/layerflags.c
 src/main.c
 src/misc.c
 src/move.c
@@ -56,6 +57,7 @@ src/res_parse.y
 src/rotate.c
 src/select.c
 src/set.c
+src/smartdisperse.c
 src/toporouter.c
 src/undo.c
 src/vendor.c

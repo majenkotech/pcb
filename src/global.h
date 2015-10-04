@@ -113,7 +113,7 @@ typedef unsigned char BYTE;
 typedef struct
 {
   unsigned long f;		/* generic flags */
-  unsigned char t[(MAX_LAYER + 1) / 2];	/* thermals */
+  unsigned char t[(MAX_LAYER + 1) / 2];  /* thermals */
 } FlagType;
 
 #ifndef __GNUC__
@@ -195,7 +195,7 @@ OutputType;
 typedef struct
 {
   Cardinal Number[MAX_GROUP],	/* number of entries per groups */
-    Entries[MAX_GROUP][MAX_LAYER + 2];
+    Entries[MAX_GROUP][MAX_ALL_LAYER];
 } LayerGroupType;
 
 struct BoxType		/* a bounding box */
@@ -293,6 +293,7 @@ struct rtree
 
 typedef struct			/* holds information about one layer */
 {
+  LayertypeType Type;           /* LT_* from hid.h */
   char *Name;			/* layer name */
   Cardinal LineN,		/* number of lines */
     TextN,			/* labels */
@@ -397,7 +398,7 @@ typedef struct			/* holds all objects */
   rtree_t *via_tree, *element_tree, *pin_tree, *pad_tree, *name_tree[3],	/* for element names */
    *rat_tree;
   struct PCBType *pcb;
-  LayerType Layer[MAX_LAYER + 2];	/* add 2 silkscreen layers */
+  LayerType Layer[MAX_ALL_LAYER];
   int polyClip;
 } DataType;
 
@@ -800,17 +801,9 @@ struct drc_violation_st
 #define	UNDO_CLEAR		       0x40000	/* clear/restore to polygons */
 #define	UNDO_NETLISTCHANGE	       0x80000	/* netlist change */
 
-
 /* ---------------------------------------------------------------------------
- * add a macro for wrapping RCS ID's in so that ident will still work
- * but we won't get as many compiler warnings
  */
-
-#ifndef GCC_VERSION
-#define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
-#endif /* GCC_VERSION */
-
-#if GCC_VERSION > 2007
+#if (__GNUC__ * 1000 + __GNUC_MINOR__) > 2007
 #define ATTRIBUTE_UNUSED __attribute__((unused))
 #else
 #define ATTRIBUTE_UNUSED

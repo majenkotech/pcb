@@ -60,7 +60,7 @@ bool IsLayerGroupEmpty (int);
 bool IsPasteEmpty (int);
 void CountHoles (int *, int *, const BoxType *);
 BoxType * GetDataBoundingBox (DataType *);
-void CenterDisplay (Coord, Coord);
+void CenterDisplay (Coord, Coord, bool warp_pointer);
 void SetFontInfo (FontType *);
 char *make_route_string (RouteStyleType rs[], int n_styles);
 int ParseGroupString (char *, LayerGroupType *, int * /* LayerN */);
@@ -91,6 +91,7 @@ char *UniqueElementName (DataType *, char *);
 void AttachForCopy (Coord, Coord);
 double GetValue (const char *, const char *, bool *);
 double GetValueEx (const char *, const char *, bool *, UnitList, const char *);
+double GetUnitlessValue (const char *, bool *);
 int FileExists (const char *);
 char *Concat (const char *, ...);	/* end with NULL */
 
@@ -133,6 +134,9 @@ extern const char *c_dtostr(double d);
 
 /* Returns a string with info about this copy of pcb. */
 char * GetInfoString (void);
+
+/* Sets up any remaining layer type guesses. */
+void AssignDefaultLayerTypes ();
 
 /* Return a relative rotation for an element, useful only for
    comparing two similar footprints.  */

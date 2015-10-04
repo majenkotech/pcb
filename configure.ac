@@ -70,17 +70,6 @@ docs_yesno=yes
 AC_SUBST(DOC)
 
 
-AC_MSG_CHECKING([if maintainer mode is required])
-if test "$docs_yesno" = "yes" -a "$pcb_git_version" = "yes" ; then
-	AC_MSG_RESULT([yes -- the documentation build is enabled and your sources are from git])
-	enable_maintainer_mode=yes
-else
-	AC_MSG_RESULT([no])
-fi
-
-AM_MAINTAINER_MODE
-
-
 dnl determine host type
 AC_CANONICAL_HOST
 AC_MSG_CHECKING(for windows)
@@ -315,6 +304,21 @@ AS_CASE(["x$enable_toporouter"],[xyes | xno],,
 )
 AC_MSG_RESULT([$enable_toporouter])
 AM_CONDITIONAL([WITH_TOPOROUTER], test $enable_toporouter != no)
+
+if test "x$enable_toporouter" = "xyes"; then
+  this_error_text="
+    You have requested to build with the toporouter.  For this to work you
+    must have the GTS library installed, typically found in packages named
+    'libgts-dev' or similar.
+
+    Alternatively you can disable the toporouter with --disable-toporouter."
+  # Testing for gts.h requires glib.h, which is tested for later. To not take
+  # apart toporouter related stuff and because testing for the library makes
+  # reasonably sure that GTS is available, we omit a test for gts.h.
+  #AC_CHECK_HEADER(gts.h, , AC_MSG_ERROR($this_error_text), glib.h)
+  AC_SEARCH_LIBS(gts_object_class_new, gts, , AC_MSG_ERROR($this_error_text))
+  unset this_error_text
+fi
 
 AC_MSG_CHECKING([whether to enable toporouter output])
 AC_ARG_ENABLE([toporouter-output],
@@ -1298,33 +1302,7 @@ if test -d $srcdir/tutorial; then
 fi
 
 dnl testsuite
-AC_CONFIG_FILES(tests/inputs/Makefile)
-AC_CONFIG_FILES(tests/golden/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_bom1/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_bom2/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_bom3/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_bom4/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode1/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode2/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode3/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode4/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode5/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode6/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode7/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode8/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode9/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode10/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gcode11/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gerber1/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gerber2/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_gerber3/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_png1/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_png2/Makefile)
-AC_CONFIG_FILES(tests/golden/hid_png3/Makefile)
 AC_CONFIG_FILES(tests/Makefile)
-
-dnl GTS 0.7.6 - http://gts.sourceforge.net/
-AC_CONFIG_FILES(gts/Makefile)
 
 dnl win32 build scripts
 AC_CONFIG_FILES(w32/Makefile)
@@ -1341,6 +1319,15 @@ expandedKDEDATADIR=`eval "echo $KDEDATADIR"`
 AC_MSG_RESULT([
 ** Configuration summary for $PACKAGE $VERSION:
 
+   Cross Compiling:          $cross_compiling
+   CC:                       $CC
+   CXX:                      $CXX
+   CPPFLAGS:                 $CPPFLAGS
+   CFLAGS:                   $CFLAGS
+   CXXFLAGS:                 $CXXFLAGS
+   LIBS:                     $LIBS
+   PCB:                      $PCB
+
    GUI:                      $with_gui
    Printer:                  $with_printer
    Exporters:                $with_exporters
@@ -1353,14 +1340,5 @@ AC_MSG_RESULT([
    KDE data directory:       $expandedKDEDATADIR
    dmalloc debugging:        $with_dmalloc
    ElectricFence debugging:  $with_efence
-
-   Cross Compiling:          $cross_compiling
-   CC:                       $CC
-   CXX:                      $CXX
-   CPPFLAGS:                 $CPPFLAGS
-   CFLAGS:                   $CFLAGS
-   CXXFLAGS:                 $CXXFLAGS
-   LIBS:                     $LIBS
-   PCB:                      $PCB
-
+   Regression tests enabled: $have_test_tools
 ])

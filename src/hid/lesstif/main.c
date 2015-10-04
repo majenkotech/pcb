@@ -545,6 +545,9 @@ PanAction (int argc, char **argv, Coord x, Coord y)
 {
   int mode;
 
+  if (argc < 1)
+    return 1;
+
   if (argc == 2)
     {
       pan_thumb_mode = (strcasecmp (argv[0], "thumb") == 0) ? 1 : 0;
@@ -2694,9 +2697,10 @@ idle_proc (XtPointer dummy)
 	else
 	  {
 	    if (old_gx || old_gy)
-	      pcb_sprintf (buf, "%m+%$mS @%mS,%mS", UUNIT, old_grid, old_gx, old_gy);
+	      pcb_snprintf (buf, sizeof (buf), "%m+%$mS @%mS,%mS",
+			    UUNIT, old_grid, old_gx, old_gy);
 	    else
-	      pcb_sprintf (buf, "%m+%$mS", UUNIT, old_grid);
+	      pcb_snprintf (buf, sizeof (buf), "%m+%$mS", UUNIT, old_grid);
 	  }
 	ms = XmStringCreatePCB (buf);
 	n = 0;
@@ -3007,7 +3011,7 @@ lesstif_set_layer (const char *name, int group, int empty)
       for (idx = 0; idx < n-1; idx ++)
 	{
 	  int ni = PCB->LayerGroups.Entries[group][idx];
-	  if (ni >= 0 && ni < max_copper_layer + 2
+	  if (ni >= 0 && ni < max_copper_layer + SILK_LAYER
 	      && PCB->Data->Layer[ni].On)
 	    break;
 	}
@@ -3025,7 +3029,7 @@ lesstif_set_layer (const char *name, int group, int empty)
   else
     autofade = 0;
 #endif
-  if (idx >= 0 && idx < max_copper_layer + 2)
+  if (idx >= 0 && idx < max_copper_layer + SILK_LAYER)
     return pinout ? 1 : PCB->Data->Layer[idx].On;
   if (idx < 0)
     {
@@ -3531,6 +3535,16 @@ lesstif_set_crosshair (int x, int y, int action)
 
     }
 
+  if (action == HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER)
+    {
+      fprintf (
+          stderr,
+          "warning:%s:%i: HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER not "
+          "implemented in this HID, using HID_SC_WARP_POINTER instead\n",
+          __FILE__,
+          __LINE__ );
+      action = HID_SC_WARP_POINTER;
+    }
   if (action == HID_SC_PAN_VIEWPORT)
     {
       Window root, child;
@@ -3807,6 +3821,8 @@ pinout_unmap (Widget w, PinoutData * pd, void *v)
   XtDestroyWidget (XtParent (pd->form));
   free (pd);
 }
+
+BoxType *hid_get_extents (void *item);
 
 static void
 lesstif_show_item (void *item)

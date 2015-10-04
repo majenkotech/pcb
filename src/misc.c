@@ -94,8 +94,8 @@ static void GetGridLockCoordinates (int, void *, void *, void *,
 static struct
 {
   bool ElementOn, InvisibleObjectsOn, PinOn, ViaOn, RatOn;
-  int LayerStack[MAX_LAYER];
-  bool LayerOn[MAX_LAYER];
+  int LayerStack[MAX_ALL_LAYER];
+  bool LayerOn[MAX_ALL_LAYER];
   int cnt;
 } SavedStack;
 
@@ -207,6 +207,41 @@ GetValueEx (const char *val, const char *units, bool * absolute, UnitList extra_
       if (!scaled && unit != NULL)
         value = unit_to_coord (unit, value);
     }
+
+  return value;
+}
+
+/*!
+ * \brief Extract a unit-less value from a string.
+ *
+ * \param val       String containing the value to be read.
+ *
+ * \param absolute  Returns wether the returned value is an absolute one.
+ *
+ * \return The value read, with sign.
+ *
+ * This is the same as GetValue() and GetValueEX(), but totally ignoring units.
+ * Typical application is a list selector, like the type of thermal to apply
+ * to a pin.
+ */
+double GetUnitlessValue (const char *val, bool *absolute) {
+  double value;
+
+  if (*val == '=')
+    {
+      *absolute = true;
+      val++;
+    }
+  else
+    {
+      if (isdigit ((int) *val))
+        *absolute = true;
+      else
+        *absolute = false;
+    }
+
+  if (sscanf (val, "%lf", &value) < 1)
+    return 0.;
 
   return value;
 }
@@ -619,7 +654,7 @@ IsDataEmpty (DataType *Data)
 
   hasNoObjects = (Data->ViaN == 0);
   hasNoObjects &= (Data->ElementN == 0);
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     hasNoObjects = hasNoObjects &&
       Data->Layer[i].LineN == 0 &&
       Data->Layer[i].ArcN == 0 &&
@@ -793,16 +828,25 @@ GetDataBoundingBox (DataType *Data)
 }
 
 /* ---------------------------------------------------------------------------
- * centers the displayed PCB around the specified point (X,Y)
+ * centers the displayed PCB around the specified point (X,Y), and move the
+ * crosshair there.  If warp_pointer is true warp the pointer to the crosshair
  */
 void
-CenterDisplay (Coord X, Coord Y)
+CenterDisplay (Coord X, Coord Y, bool warp_pointer)
 {
   Coord save_grid = PCB->Grid;
+
   PCB->Grid = 1;
+
   if (MoveCrosshairAbsolute (X, Y))
     notify_crosshair_change (true);
-  gui->set_crosshair (Crosshair.X, Crosshair.Y, HID_SC_WARP_POINTER);
+
+  if (warp_pointer)
+    gui->set_crosshair (Crosshair.X, Crosshair.Y,
+                        HID_SC_CENTER_IN_VIEWPORT_AND_WARP_POINTER );
+  else
+    gui->set_crosshair (Crosshair.X, Crosshair.Y, HID_SC_CENTER_IN_VIEWPORT);
+
   PCB->Grid = save_grid;
 }
 
@@ -993,7 +1037,7 @@ ParseGroupString (char *group_string, LayerGroupType *LayerGroup, int *LayerN)
   int group, member, layer;
   bool c_set = false,        /* flags for the two special layers to */
     s_set = false;              /* provide a default setting for old formats */
-  int groupnum[MAX_LAYER + 2];
+  int groupnum[MAX_ALL_LAYER];
 
   *LayerN = 0;
 
@@ -1039,7 +1083,7 @@ ParseGroupString (char *group_string, LayerGroupType *LayerGroup, int *LayerN)
   memset (LayerGroup, 0, sizeof (LayerGroupType));
 
   /* Clear assignments */
-  for (layer = 0; layer < MAX_LAYER + 2; layer++)
+  for (layer = 0; layer < MAX_ALL_LAYER; layer++)
     groupnum[layer] = -1;
 
   /* loop over all groups */
@@ -1121,6 +1165,64 @@ ParseGroupString (char *group_string, LayerGroupType *LayerGroup, int *LayerN)
 error:
   memset (LayerGroup, 0, sizeof (LayerGroupType));
   return (1);
+}
+
+void
+AssignDefaultLayerTypes()
+{
+  int num_found;
+  Cardinal outline_layer = -1;
+
+  /**
+   * There can be only one outline layer. During parsing guess_layertype()
+   * applied well known cases already, but as this function operates on a
+   * single layer only, it might end up with more than one hit for the whole
+   * file. Especially after loading an older layout without saved flags.
+   */
+  num_found = 0;
+  LAYER_TYPE_LOOP (PCB->Data, max_copper_layer, LT_OUTLINE)
+    outline_layer = n;
+    num_found++;
+  END_LOOP;
+
+  if (num_found != 1)
+    /* No or duplicate outline! Try to find a layer which is named exactly
+       "outline". */
+    LAYER_TYPE_LOOP (PCB->Data, max_copper_layer, LT_OUTLINE)
+      if ( ! strcasecmp (layer->Name, "outline"))
+        {
+          outline_layer = n;
+          num_found = 1;
+          break;
+        }
+    END_LOOP;
+
+  if (num_found != 1)
+    /* Next, try to find a layer which is named exactly "route". */
+    LAYER_TYPE_LOOP (PCB->Data, max_copper_layer, LT_OUTLINE)
+      if ( ! strcasecmp (layer->Name, "route"))
+        {
+          outline_layer = n;
+          num_found = 1;
+          break;
+        }
+    END_LOOP;
+
+  if (num_found != 1)
+    /* As last resort, take the first layer claiming to be outline. */
+    LAYER_TYPE_LOOP (PCB->Data, max_copper_layer, LT_OUTLINE)
+      outline_layer = n;
+      num_found = 1;
+      break;
+    END_LOOP;
+
+  /* Make sure our found outline layer is the only one. */
+  LAYER_TYPE_LOOP (PCB->Data, max_copper_layer, LT_OUTLINE)
+    if (n == outline_layer)
+      layer->Type = LT_OUTLINE;
+    else
+      layer->Type = LT_ROUTE;  /* best guess */
+  END_LOOP;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1254,7 +1356,7 @@ GetLayerNumber (DataType *Data, LayerType *Layer)
 {
   int i;
 
-  for (i = 0; i < MAX_LAYER + 2; i++)
+  for (i = 0; i < MAX_ALL_LAYER; i++)
     if (Layer == &Data->Layer[i])
       break;
   return (i);
@@ -1367,7 +1469,7 @@ LayerStringToLayerStack (char *s)
 	}
     }
 
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     {
       if (i < max_copper_layer)
         LayerStack[i] = i;
@@ -1459,7 +1561,7 @@ GetLayerGroupNumberByNumber (Cardinal Layer)
 }
 
 /* ---------------------------------------------------------------------------
- * returns the layergroup number for the passed side (TOP_LAYER or BOTTOM_LAYER)
+ * returns the layergroup number for the passed side (TOP_SIDE or BOTTOM_SIDE)
  */
 int
 GetLayerGroupNumberBySide (int side)
@@ -1581,7 +1683,7 @@ ResetStackAndVisibility (void)
   int top_group;
   Cardinal i;
 
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     {
       if (i < max_copper_layer)
         LayerStack[i] = i;
@@ -1620,7 +1722,7 @@ SaveStackAndVisibility (void)
                "yet restored.  cnt = %d\n", SavedStack.cnt);
     }
 
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     {
       if (i < max_copper_layer)
         SavedStack.LayerStack[i] = LayerStack[i];
@@ -1654,7 +1756,7 @@ RestoreStackAndVisibility (void)
                " wrong.  cnt = %d\n", SavedStack.cnt);
     }
 
-  for (i = 0; i < max_copper_layer + 2; i++)
+  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
     {
       if (i < max_copper_layer)
         LayerStack[i] = SavedStack.LayerStack[i];
@@ -2021,9 +2123,9 @@ MoveLayerToGroup (int layer, int group)
 char *
 LayerGroupsToString (LayerGroupType *lg)
 {
-#if MAX_LAYER < 9998
+#if MAX_ALL_LAYER < 9999
   /* Allows for layer numbers 0..9999 */
-  static char buf[(MAX_LAYER + 2) * 5 + 1];
+  static char buf[(MAX_ALL_LAYER) * 5 + 1];
 #endif
   char *cp = buf;
   char sep = 0;
