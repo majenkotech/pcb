@@ -42,6 +42,7 @@ src/hid/gtk/gui-top-window.c
 src/hid/lesstif/dialogs.c
 src/hid/lpr/lpr.c
 src/hid/ps/ps.c
+src/hid/png/png.c
 src/hid/gtk/gui-trackball.c
 src/layerflags.c
 src/main.c
@@ -52,12 +53,14 @@ src/parse_y.y
 src/pcb-menu.res.h
 src/polygon.c
 src/rats.c
+src/renumber.c
 src/report.c
 src/res_parse.y
 src/rotate.c
 src/select.c
 src/set.c
 src/smartdisperse.c
+src/teardrops.c
 src/toporouter.c
 src/undo.c
 src/vendor.c

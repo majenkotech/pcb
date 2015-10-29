@@ -117,6 +117,7 @@ PCB_SRCS = \
 	rats.h \
 	remove.c \
 	remove.h \
+	renumber.c \
 	report.c \
 	report.h \
 	res_parse.y \
@@ -137,6 +138,7 @@ PCB_SRCS = \
 	smartdisperse.c \
 	strflags.c \
 	strflags.h \
+	teardrops.c \
 	thermal.c \
 	thermal.h \
 	undo.c \
