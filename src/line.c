@@ -1,28 +1,35 @@
-/*
- *                            COPYRIGHT
+/*!
+ * \file src/line.c
  *
- *  PCB, interactive printed circuit board design
- *  Copyright (C) 1994,1995,1996 Thomas Nau
- *  Copyright (C) 2004 harry eaton
+ * \brief Routines for inserting points into objects.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * <hr>
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * <h1><b>Copyright.</b></h1>\n
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * PCB, interactive printed circuit board design
  *
- *  Contact addresses for paper mail and Email:
- *  Thomas Nau, Schlehenweg 15, 88471 Baustetten, Germany
- *  Thomas.Nau@rz.uni-ulm.de
+ * Copyright (C) 1994,1995,1996 Thomas Nau
  *
+ * Copyright (C) 2004 harry eaton
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Contact addresses for paper mail and Email:
+ * Thomas Nau, Schlehenweg 15, 88471 Baustetten, Germany
+ * Thomas.Nau@rz.uni-ulm.de
  */
 
 #ifdef HAVE_CONFIG_H
@@ -48,8 +55,8 @@
 
 static double drc_lines (PointType *end, bool way);
 
-/* ---------------------------------------------------------------------------
- * Adjust the attached line to 45 degrees if necessary
+/*!
+ * \brief Adjust the attached line to 45 degrees if necessary.
  */
 void
 AdjustAttachedLine (void)
@@ -77,16 +84,17 @@ AdjustAttachedLine (void)
   FortyFiveLine (line);
 }
 
-/* ---------------------------------------------------------------------------
- * makes the attached line fit into a 45 degree direction
+/*!
+ * \brief Makes the attached line fit into a 45 degree direction.
  *
- * directions:
- *
- *           4
- *          5 3
- *         6   2
- *          7 1
- *           0
+ * Directions:\n
+<pre>
+           4
+          5 3
+         6   2
+          7 1
+           0
+</pre>
  */
 void
 FortyFiveLine (AttachedLineType *Line)
@@ -167,8 +175,8 @@ FortyFiveLine (AttachedLineType *Line)
     }
 }
 
-/* ---------------------------------------------------------------------------
- *  adjusts the insert lines to make them 45 degrees as necessary
+/*!
+ * \brief Adjusts the insert lines to make them 45 degrees as necessary.
  */
 void
 AdjustTwoLine (bool way)
@@ -278,16 +286,17 @@ drcArc_callback (const BoxType * b, void *cl)
   return 1;
 }
 
-/* drc_lines() checks for intersectors against two lines and
+/*!
+ * \brief drc_lines() checks for intersectors against two lines and
  * adjusts the end point until there is no intersection or
- * it winds up back at the start. If way is false it checks
- * straight start, 45 end lines, otherwise it checks 45 start,
- * straight end. 
+ * it winds up back at the start.
+ *
+ * If way is false it checks straight start, 45 end lines, otherwise it
+ * checks 45 start, straight end. 
  *
  * It returns the straight-line length of the best answer, and
  * changes the position of the input point to the best answer.
  */
-
 static double
 drc_lines (PointType *end, bool way)
 {
@@ -304,7 +313,7 @@ drc_lines (PointType *end, bool way)
   s = 0.5;
   last = -1;
   line1.Flags = line2.Flags = NoFlags ();
-  line1.Thickness = Settings.LineThickness + 2 * (PCB->Bloat + 1);
+  line1.Thickness = Settings.LineThickness + 2 * PCB->Bloat;
   line2.Thickness = line1.Thickness;
   line1.Clearance = line2.Clearance = 0;
   line1.Point1.X = Crosshair.AttachedLine.Point1.X;

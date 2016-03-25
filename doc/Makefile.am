@@ -103,7 +103,19 @@ pcb_files=	\
 	pad.pcb \
 	puller.pcb \
 	thermal.pcb \
-	gcode.pcb
+	gcode.pcb \
+	debumpify.pcb \
+	debumpify.out.pcb \
+	miter.pcb \
+	miter.out.pcb \
+	orthopull.pcb \
+	orthopull.out.pcb \
+	unjaggy.pcb \
+	unjaggy.out.pcb \
+	vianudge.pcb \
+	vianudge.out.pcb \
+	viatrim.pcb \
+	viatrim.out.pcb
 
 pcb_output_noinst=	\
 	${pcb_files:.pcb=.pdf}

@@ -161,7 +161,7 @@ XORDrawAttachedLine (hidGC gc, Coord x1, Coord y1, Coord x2, Coord y2, Coord thi
   dx = x2 - x1;
   dy = y2 - y1;
   if (dx != 0 || dy != 0)
-    h = 0.5 * thick / sqrt (SQUARE (dx) + SQUARE (dy));
+    h = 0.5 * thick / hypot (dx, dy);
   else
     h = 0.0;
   ox = dy * h + 0.5 * SGN (dy);
@@ -591,7 +591,7 @@ DrawAttached (hidGC gc)
 	  if (TEST_FLAG (SHOWDRCFLAG, PCB))
 	    {
 	      gui->graphics->set_color (gc, Settings.CrossColor);
-	      XORDrawAttachedArc (gc, Settings.LineThickness + 2 * (PCB->Bloat + 1));
+	      XORDrawAttachedArc (gc, Settings.LineThickness + 2 * PCB->Bloat);
 	      gui->graphics->set_color (gc, Settings.CrosshairColor);
 	    }
 
@@ -622,13 +622,13 @@ DrawAttached (hidGC gc)
 	                           Crosshair.AttachedLine.Point2.X,
 	                           Crosshair.AttachedLine.Point2.Y,
 	                           PCB->RatDraw ? 10 : Settings.LineThickness
-	                           + 2 * (PCB->Bloat + 1));
+	                           + 2 * PCB->Bloat);
 	      if (PCB->Clipping)
 		XORDrawAttachedLine (gc, Crosshair.AttachedLine.Point2.X,
 		                         Crosshair.AttachedLine.Point2.Y,
 		                     Crosshair.X, Crosshair.Y,
 		                     PCB->RatDraw ? 10 : Settings.
-		                     LineThickness + 2 * (PCB->Bloat + 1));
+		                     LineThickness + 2 * PCB->Bloat);
 	      gui->graphics->set_color (gc, Settings.CrosshairColor);
 	    }
 	}

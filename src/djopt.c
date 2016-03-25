@@ -337,14 +337,9 @@ djmin (int x, int y)
 static int
 dist (int x1, int y1, int x2, int y2)
 {
-  double dx1, dy1, dx2, dy2, d;
+  double d;
 
-  dx1 = (double) x1;
-  dy1 = (double) y1;
-  dx2 = (double) x2;
-  dy2 = (double) y2;
-
-  d = sqrt ((dx1 - dx2) * (dx1 - dx2) + (dy1 - dy2) * (dy1 - dy2));
+  d = hypot ((double) x1 - (double) x2, (double) y1 - (double) y2);
   d = rint (d);
 
   return (int) d;
@@ -372,12 +367,6 @@ dist_ltp2 (int dx, int y, int y1, int y2)
   return djabs (dx);
 }
 
-int
-sqr (int a)
-{
-  return a * a;
-}
-
 static int
 intersecting_layers (int l1, int l2)
 {
@@ -401,7 +390,7 @@ dist_line_to_point (line_s * l, corner_s * c)
     return dist_ltp2 (l->s->y - c->y, c->x, l->s->x, l->e->x);
 
   /* Do it the hard way.  See comments for IsPointOnLine() in search.c */
-  len = sqrt (sqr (l->s->x - l->e->x) + sqr (l->s->y - l->e->y));
+  len = hypot (l->s->x - l->e->x, l->s->y - l->e->y);
   if (len == 0)
     return dist (l->s->x, l->s->y, c->x, c->y);
   r =
@@ -2899,9 +2888,31 @@ reduce the total trace length and via count.
 @item debumpify
 Looks for U-shaped traces that can be shortened or eliminated.
 
+Example:
+
+Before debumpify:
+
+@center @image{debumpify,,,Example pcb before debumpify,png}
+
+After debumpify:
+
+@center @image{debumpify.out,,,Example pcb after debumpify,png}
+
+
 @item unjaggy
 Looks for corners which could be flipped to eliminate one or more
 corners (i.e. jaggy lines become simpler).
+
+Example:
+
+Before unjaggy:
+
+@center @image{unjaggy,,,Example pcb before unjaggy,png}
+
+After unjaggy:
+
+@center @image{unjaggy.out,,,Example pcb after unjaggy,png}
+
 
 @item simple
 Removing uneeded vias, replacing two or more trace segments in a row
@@ -2913,15 +2924,48 @@ Looks for vias where all traces leave in the same direction.  Tries to
 move via in that direction to eliminate one of the traces (and thus a
 corner).
 
+Example:
+
+Before vianudge:
+
+@center @image{vianudge,,,Example pcb before vianudge,png}
+
+After vianudge:
+
+@center @image{vianudge.out,,,Example pcb after vianudge,png}
+
+
 @item viatrim
 Looks for traces that go from via to via, where moving that trace to a
 different layer eliminates one or both vias.
+
+Example:
+
+Before viatrim:
+
+@center @image{viatrim,,,Example pcb before viatrim,png}
+
+After viatrim:
+
+@center @image{viatrim.out,,,Example pcb after viatrim,png}
+
 
 @item orthopull
 Looks for chains of traces all going in one direction, with more
 traces orthogonal on one side than on the other.  Moves the chain in
 that direction, causing a net reduction in trace length, possibly
 eliminating traces and/or corners.
+
+Example:
+
+Before orthopull:
+
+@center @image{orthopull,,,Example pcb before orthopull,png}
+
+After orthopull:
+
+@center @image{orthopull.out,,,Example pcb after orthopull,png}
+
 
 @item splitlines
 Looks for lines that pass through vias, pins, or pads, and splits them
@@ -2934,6 +2978,17 @@ can be made.
 @item miter
 Replaces 90 degree corners with a pair of 45 degree corners, to reduce
 RF losses and trace length.
+
+Example:
+
+Before miter:
+
+@center @image{miter,,,Example pcb before miter,png}
+
+After miter:
+
+@center @image{miter.out,,,Example pcb after miter,png}
+
 
 @end table
 
@@ -3002,6 +3057,8 @@ ActionDJopt (int argc, char **argv, Coord x, Coord y)
   for (layn = 0; layn < max_copper_layer; layn++)
     {
       LayerType *layer = LAYER_PTR (layn);
+      if (layer->Type != LT_COPPER)
+	continue;
 
       LINE_LOOP (layer);
 	{
