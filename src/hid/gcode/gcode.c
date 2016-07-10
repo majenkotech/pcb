@@ -483,6 +483,7 @@ gcode_start_gcode (const char *layername, bool metric)
   if ( ! file)
     {
       perror (buffer);
+      Message ("Can't open file %s\n", buffer);
       return NULL;
     }
   fprintf (file, "(Created by G-code exporter)\n");
@@ -1035,8 +1036,8 @@ gcode_do_export (HID_Attr_Val * options)
      * Accordingly, we need an entirely different approach.
      */
     /*
-     * Currently this is a rarther simple implementation, which mills
-     * the retangular extents of the board and nothing else. This should
+     * Currently this is a rather simple implementation, which mills
+     * the rectangular extents of the board and nothing else. This should
      * be sufficient for many use cases.
      *
      * A better implementation would have to group the lines and polygons

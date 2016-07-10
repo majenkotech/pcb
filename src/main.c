@@ -60,6 +60,7 @@
 #include "polygon.h"
 #include "gettext.h"
 #include "pcb-printf.h"
+#include "strflags.h"
 
 #include "hid/common/actions.h"
 
@@ -1868,6 +1869,62 @@ char *program_directory = 0;
 #include "dolists.h"
 
 /*!
+ * \brief Free up memory allocated to the PCB.
+ *
+ * Why bother when we're about to exit ?\n
+ * Because it removes some false positives from heap bug detectors such
+ * as lib dmalloc.
+ */
+void
+pcb_main_uninit (void)
+{
+  int i;
+
+  if (gui->uninit != NULL)
+    gui->uninit (gui);
+
+  hid_uninit ();
+
+  UninitBuffers ();
+
+  FreePCBMemory (PCB);
+  free (PCB);
+  PCB = NULL;
+
+  for (i = 0; i < MAX_LAYER; i++)
+    free (Settings.DefaultLayerName[i]);
+
+  if (Settings.FontFile != NULL)
+    {
+      free (Settings.FontFile);
+      Settings.FontFile = NULL;
+    }
+
+  uninit_strflags_buf ();
+  uninit_strflags_layerlist ();
+
+#define free0(ptr) \
+  do \
+    { \
+      if (ptr != NULL) \
+        { \
+          free (ptr); \
+          ptr = 0; \
+        } \
+    } while (0)
+
+  free0 (pcblibdir);
+  free0 (homedir);
+  free0 (bindir);
+  free0 (exec_prefix);
+  free0 (program_directory);
+  free0 (Settings.MakeProgram);
+  free0 (Settings.GnetlistProgram);
+
+#undef free0
+}
+
+/*!
  * \brief Main program.
  *
  * Init application:
@@ -1917,7 +1974,7 @@ main (int argc, char *argv[])
     }
   else
     {
-      program_directory = ".";
+      program_directory = strdup (".");
       program_basename = program_name;
     }
   Progname = program_basename;
@@ -2006,11 +2063,18 @@ main (int argc, char *argv[])
 
   if (command_line_pcb)
     {
-      /* keep filename even if initial load command failed;
-       * file might not exist
-       */
-      if (LoadPCB (command_line_pcb))
-	PCB->Filename = strdup (command_line_pcb);
+      if (access(command_line_pcb, F_OK))
+        {
+	   /* File does not exist, save the filename and continue with empty board */
+	   PCB->Filename = strdup (command_line_pcb);
+	} else {
+	   /* Hard fail if file exists and fails to load */
+           if (LoadPCB (command_line_pcb))
+             {
+	       fprintf(stderr, "LoadPCB: Failed to load existing file \"%s\". Is it supported PCB file?\n", command_line_pcb);
+	       exit(1);
+	     }
+        }
     }
 
   if (Settings.InitialLayerStack
@@ -2088,6 +2152,8 @@ main (int argc, char *argv[])
 #if HAVE_DBUS
   pcb_dbus_finish();
 #endif
+
+  pcb_main_uninit ();
 
   return (0);
 }
