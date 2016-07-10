@@ -71,6 +71,7 @@ static void *ChangePinMaskSize (ElementType *, PinType *);
 static void *ChangePadSize (ElementType *, PadType *);
 static void *ChangePadClearSize (ElementType *, PadType *);
 static void *ChangePadMaskSize (ElementType *, PadType *);
+static void *ChangePadPasteSize (ElementType *, PadType *);
 static void *ChangePin2ndSize (ElementType *, PinType *);
 static void *ChangeElement2ndSize (ElementType *);
 static void *ChangeViaSize (PinType *);
@@ -253,6 +254,24 @@ static ObjectFunctionType ChangeMaskSizeFunctions = {
   NULL,
   ChangePinMaskSize,
   ChangePadMaskSize,
+  NULL,
+  NULL,
+  NULL,
+  NULL
+};
+static ObjectFunctionType ChangePasteSizeFunctions = {
+  NULL,
+  NULL,
+  NULL,
+  NULL,                
+#if 0
+  NULL,                     
+#else
+  NULL,
+#endif
+  NULL,
+  NULL,                 
+  ChangePadPasteSize,
   NULL,
   NULL,
   NULL,
@@ -1764,6 +1783,23 @@ ChangeSelectedClearSize (int types, Coord Difference, bool fixIt)
   return (change);
 }
 
+bool
+ChangeSelectedPasteSize (int types, Coord Difference, bool fixIt)
+{
+  bool change = false;
+
+  /* setup identifiers */
+  Absolute = (fixIt) ? Difference : 0;
+  Delta = Difference;
+    change = SelectedOperation (&ChangePasteSizeFunctions, false, types);
+  if (change)
+    {
+      Draw ();
+      IncrementUndoSerialNumber ();
+    }
+  return (change);
+}
+
 /*!
  * \brief Changes the 2nd size (drilling hole) of all selected and
  * visible objects.
@@ -2145,6 +2181,26 @@ ChangeObjectMaskSize (int Type, void *Ptr1, void *Ptr2, void *Ptr3,
   return (change);
 }
 
+bool
+ChangeObjectPasteSize (int Type, void *Ptr1, void *Ptr2, void *Ptr3,
+		      Coord Difference, bool fixIt)
+{
+  bool change;
+
+  /* setup identifier */
+  Absolute = (fixIt) ? Difference : 0;
+  Delta = Difference;
+  change =
+    (ObjectOperation (&ChangePasteSizeFunctions, Type, Ptr1, Ptr2, Ptr3) !=
+     NULL);
+  if (change)
+    {
+      Draw ();
+      IncrementUndoSerialNumber ();
+    }
+  return (change);
+}
+
 /*!
  * \brief Changes the name of the passed object.
  *
@@ -2435,6 +2491,27 @@ ChangePadMaskSize (ElementType *Element, PadType *Pad)
       ErasePad (Pad);
       r_delete_entry (PCB->Data->pad_tree, &Pad->BoundingBox);
       Pad->Mask = value;
+      SetElementBoundingBox (PCB->Data, Element, &PCB->Font);
+      DrawPad (Pad);
+      return (Pad);
+    }
+  return (NULL);
+}
+
+static void *
+ChangePadPasteSize (ElementType *Element, PadType *Pad)
+{
+  Coord value = (Absolute) ? Absolute : Pad->Paste + Delta;
+
+  value = MAX (value, 0);
+  if (value == Pad->Paste && Absolute == 0)
+    value = Pad->Thickness;
+  if (value != Pad->Paste)
+    {
+      AddObjectToMaskSizeUndoList (PAD_TYPE, Element, Pad, Pad);
+      ErasePad (Pad);
+      r_delete_entry (PCB->Data->pad_tree, &Pad->BoundingBox);
+      Pad->Paste = value;
       SetElementBoundingBox (PCB->Data, Element, &PCB->Font);
       DrawPad (Pad);
       return (Pad);

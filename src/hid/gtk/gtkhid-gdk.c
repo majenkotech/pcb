@@ -27,6 +27,7 @@ typedef struct render_priv {
   GdkGC *bg_gc;
   GdkGC *offlimits_gc;
   GdkGC *mask_gc;
+  GdkGC *paste_gc;
   GdkGC *u_gc;
   GdkGC *grid_gc;
   bool clip;
@@ -256,7 +257,7 @@ ghid_draw_bg_image (void)
 				   w - x, h - y, GDK_RGB_DITHER_NORMAL, 0, 0);
 }
 
-#define WHICH_GC(gc) (cur_mask == HID_MASK_CLEAR ? priv->mask_gc : (gc)->gc)
+#define WHICH_GC(gc) (cur_mask == HID_MASK_CLEAR ? priv->mask_gc : (cur_mask == HID_MASK_PASTE ? priv->paste_gc : (gc)->gc))
 
 void
 ghid_use_mask (enum mask_mode mode)
@@ -297,6 +298,25 @@ ghid_use_mask (enum mask_mode mode)
 			  gport->width, gport->height);
       color.pixel = 0;
       gdk_gc_set_foreground (priv->mask_gc, &color);
+      break;
+
+    case HID_MASK_PASTE:
+      if (!gport->mask)
+	gport->mask = gdk_pixmap_new (0, gport->width, gport->height, 1);
+      gport->drawable = gport->mask;
+      mask_seq = 0;
+      if (!priv->paste_gc)
+	{
+	  priv->paste_gc = gdk_gc_new (gport->drawable);
+	  gdk_gc_set_clip_origin (priv->paste_gc, 0, 0);
+	  set_clip (priv, priv->paste_gc);
+	}
+      color.pixel = 1;
+      gdk_gc_set_foreground (priv->paste_gc, &color);
+      gdk_draw_rectangle (gport->drawable, priv->paste_gc, TRUE, 0, 0,
+			  gport->width, gport->height);
+      color.pixel = 0;
+      gdk_gc_set_foreground (priv->paste_gc, &color);
       break;
 
     case HID_MASK_AFTER:
@@ -726,6 +746,7 @@ redraw_region (GdkRectangle *rect)
   set_clip (priv, priv->bg_gc);
   set_clip (priv, priv->offlimits_gc);
   set_clip (priv, priv->mask_gc);
+  set_clip (priv, priv->paste_gc);
   set_clip (priv, priv->grid_gc);
 
   region.X1 = MIN(Px(priv->clip_rect.x),

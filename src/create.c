@@ -127,6 +127,7 @@ pcb_colors_from_settings (PCBType *ptr)
   ptr->ViaSelectedColor = Settings.ViaSelectedColor;
   ptr->WarnColor = Settings.WarnColor;
   ptr->MaskColor = Settings.MaskColor;
+  ptr->PasteColor = Settings.PasteColor;
   for (i = 0; i < MAX_LAYER; i++)
     {
       ptr->Data->Layer[i].Color = Settings.LayerColor[i];
@@ -865,7 +866,7 @@ PadType *
 CreateNewPad (ElementType *Element,
 	      Coord X1, Coord Y1, Coord X2,
 	      Coord Y2, Coord Thickness, Coord Clearance,
-	      Coord Mask, char *Name, char *Number, FlagType Flags)
+	      Coord Mask, Coord Paste, char *Name, char *Number, FlagType Flags)
 {
   PadType *pad = GetPadMemory (Element);
 
@@ -887,6 +888,7 @@ CreateNewPad (ElementType *Element,
   pad->Thickness = Thickness;
   pad->Clearance = Clearance;
   pad->Mask = Mask;
+  pad->Paste = Paste;
   pad->Name = STRDUP (Name);
   pad->Number = STRDUP (Number);
   pad->Flags = Flags;

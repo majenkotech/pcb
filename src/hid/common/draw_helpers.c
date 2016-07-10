@@ -356,7 +356,7 @@ common_thindraw_pcb_polygon (hidGC gc, PolygonType *poly,
 }
 
 void
-common_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
+common_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask, bool paste)
 {
   Coord w = clear ? (mask ? pad->Mask
                           : pad->Thickness + pad->Clearance)
@@ -467,11 +467,13 @@ common_get_pad_polygon(Coord x[4], Coord y[4], const PadType *l, int w)
 }
 
 void
-common_fill_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
+common_fill_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask, bool paste)
 {
   Coord w = clear ? (mask ? pad->Mask
                           : pad->Thickness + pad->Clearance)
                   : pad->Thickness;
+
+  w = paste ? pad->Paste : w;
 
   if (pad->Point1.X == pad->Point2.X &&
       pad->Point1.Y == pad->Point2.Y)

@@ -154,13 +154,13 @@ nogui_draw_pcb_polygon (hidGC gc, PolygonType *poly, const BoxType *clip_box)
 }
 
 static void
-nogui_fill_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
+nogui_fill_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask, bool paste)
 {
   CRASH;
 }
 
 static void
-nogui_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask)
+nogui_thindraw_pcb_pad (hidGC gc, PadType *pad, bool clear, bool mask, bool paste)
 {
   CRASH;
 }

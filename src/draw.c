@@ -280,16 +280,19 @@ draw_pad_name (PadType *pad)
 }
 
 static void
-_draw_pad (hidGC gc, PadType *pad, bool clear, bool mask)
+_draw_pad (hidGC gc, PadType *pad, bool clear, bool mask, bool paste)
 {
   if (clear && !mask && pad->Clearance <= 0)
     return;
 
+  if (paste && pad->Paste <= 0)
+    return;
+
   if (TEST_FLAG (THINDRAWFLAG, PCB) ||
       (clear && TEST_FLAG (THINDRAWPOLYFLAG, PCB)))
-    gui->graphics->thindraw_pcb_pad (gc, pad, clear, mask);
-  else
-    gui->graphics->fill_pcb_pad (gc, pad, clear, mask);
+    gui->graphics->thindraw_pcb_pad (gc, pad, clear, mask, paste);
+  else 
+    gui->graphics->fill_pcb_pad (gc, pad, clear, mask, paste);
 }
 
 static void
@@ -302,7 +305,7 @@ draw_pad (PadType *pad)
                       PCB->PinSelectedColor, PCB->ConnectedColor, PCB->FoundColor,
                       FRONT (pad) ? PCB->PinColor : PCB->InvisibleObjectsColor);
 
-  _draw_pad (Output.fgGC, pad, false, false);
+  _draw_pad (Output.fgGC, pad, false, false, false);
 
   if (doing_pinout || TEST_FLAG (DISPLAYNAMEFLAG, pad))
     draw_pad_name (pad);
@@ -620,17 +623,29 @@ DrawEverything (const BoxType *drawn_area)
     }
 
   /* Draw the solder mask if turned on */
+  if (gui->set_layer ("componentpaste", SL (PASTE, TOP), 0))
+    {
+      DrawPaste (TOP_SIDE, drawn_area);
+      gui->end_layer ();
+    }
+
   if (gui->set_layer ("componentmask", SL (MASK, TOP), 0))
     {
       DrawMask (TOP_SIDE, drawn_area);
       gui->end_layer ();
     }
 
+  if (gui->set_layer ("solderpaste", SL (PASTE, BOTTOM), 0))
+    {
+      DrawPaste (BOTTOM_SIDE, drawn_area);
+      gui->end_layer ();
+    }
   if (gui->set_layer ("soldermask", SL (MASK, BOTTOM), 0))
     {
       DrawMask (BOTTOM_SIDE, drawn_area);
       gui->end_layer ();
     }
+
 
   if (gui->set_layer ("topsilk", SL (SILK, TOP), 0))
     {
@@ -809,7 +824,17 @@ clearPad_callback (const BoxType * b, void *cl)
   PadType *pad = (PadType *) b;
   int *side = cl;
   if (ON_SIDE (pad, *side) && pad->Mask)
-    _draw_pad (Output.pmGC, pad, true, true);
+    _draw_pad (Output.pmGC, pad, true, true, false);
+  return 1;
+}
+
+static int
+pastePad_callback (const BoxType * b, void *cl)
+{
+  PadType *pad = (PadType *) b;
+  int *side = cl;
+  if (ON_SIDE (pad, *side) && pad->Paste)
+    _draw_pad (Output.pmGC, pad, false, false, true);
   return 1;
 }
 
@@ -872,6 +897,23 @@ DrawMaskBoardArea (int mask_type, const BoxType *drawn_area)
                                            drawn_area->X2, drawn_area->Y2);
 }
 
+static void
+DrawPasteBoardArea (int mask_type, const BoxType *drawn_area)
+{
+  /* Skip the mask drawing if the GUI doesn't want this type */
+  if ((mask_type == HID_MASK_BEFORE && !gui->poly_before) ||
+      (mask_type == HID_MASK_AFTER  && !gui->poly_after))
+    return;
+
+  gui->graphics->use_mask (mask_type);
+  gui->graphics->set_color (Output.fgGC, PCB->PasteColor);
+  if (drawn_area == NULL) 
+    gui->graphics->fill_rect (Output.fgGC, 0, 0, PCB->MaxWidth, PCB->MaxHeight);
+  else 
+    gui->graphics->fill_rect (Output.fgGC, drawn_area->X1, drawn_area->Y1,
+                                           drawn_area->X2, drawn_area->Y2);
+}
+
 /*!
  * \brief Draws solder mask layer - this will cover nearly everything.
  */
@@ -901,21 +943,45 @@ DrawMask (int side, const BoxType *screen)
     }
 }
 
+void
+DrawPastex (int side, const BoxType *screen)
+{
+  int thin = TEST_FLAG(THINDRAWFLAG, PCB) || TEST_FLAG(THINDRAWPOLYFLAG, PCB);
+
+  if (thin)
+    gui->graphics->set_color (Output.pmGC, PCB->PasteColor);
+  else
+    {
+      DrawPasteBoardArea (HID_MASK_BEFORE, screen);
+      gui->graphics->use_mask (HID_MASK_PASTE);
+    }
+
+  r_search (PCB->Data->pad_tree, screen, NULL, pastePad_callback, &side);
+
+  if (thin)
+    gui->graphics->set_color (Output.pmGC, "erase");
+  else
+    {
+      DrawPasteBoardArea (HID_MASK_AFTER, screen);
+      gui->graphics->use_mask (HID_MASK_OFF);
+    }
+}
+
 /*!
  * \brief Draws solder paste layer for a given side of the board.
  */
 void
 DrawPaste (int side, const BoxType *drawn_area)
 {
-  gui->graphics->set_color (Output.fgGC, PCB->ElementColor);
+  gui->graphics->set_color (Output.fgGC, PCB->PasteColor);
   ALLPAD_LOOP (PCB->Data);
   {
-    if (ON_SIDE (pad, side) && !TEST_FLAG (NOPASTEFLAG, pad) && pad->Mask > 0)
+    if (ON_SIDE (pad, side) && !TEST_FLAG (NOPASTEFLAG, pad) && pad->Paste > 0)
       {
-        if (pad->Mask < pad->Thickness)
-          _draw_pad (Output.fgGC, pad, true, true);
-        else
-          _draw_pad (Output.fgGC, pad, false, false);
+//        if (pad->Paste < pad->Thickness)
+//          _draw_pad (Output.fgGC, pad, true, false, true);
+//        else
+          _draw_pad (Output.fgGC, pad, false, false, true);
       }
   }
   ENDALL_LOOP;

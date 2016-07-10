@@ -184,6 +184,7 @@ static bool UndoChange2ndSize (UndoListType *);
 static bool UndoChangeAngles (UndoListType *);
 static bool UndoChangeClearSize (UndoListType *);
 static bool UndoChangeMaskSize (UndoListType *);
+static bool UndoChangePasteSize (UndoListType *);
 static bool UndoClearPoly (UndoListType *);
 static int PerformUndo (UndoListType *);
 
@@ -457,6 +458,31 @@ UndoChangeMaskSize (UndoListType *Entry)
 	((PadType *) ptr2)->Mask = Entry->Data.Size;
       else
 	((PinType *) ptr2)->Mask = Entry->Data.Size;
+      Entry->Data.Size = swap;
+      if (andDraw)
+	DrawObject (type, ptr1, ptr2);
+      return (true);
+    }
+  return (false);
+}
+
+static bool
+UndoChangePasteSize (UndoListType *Entry)
+{
+  void *ptr1, *ptr2, *ptr3;
+  int type;
+  Coord swap;
+
+  /* lookup entry by ID */
+  type =
+    SearchObjectByID (PCB->Data, &ptr1, &ptr2, &ptr3, Entry->ID, Entry->Kind);
+  if (type & (VIA_TYPE | PIN_TYPE | PAD_TYPE))
+    {
+      swap =
+	(type == ((PadType *) ptr2)->Paste);
+      if (andDraw)
+	EraseObject (type, ptr1, ptr2);
+	((PadType *) ptr2)->Mask = Entry->Data.Size;
       Entry->Data.Size = swap;
       if (andDraw)
 	DrawObject (type, ptr1, ptr2);
@@ -1065,6 +1091,11 @@ PerformUndo (UndoListType *ptr)
     case UNDO_CHANGECLEARSIZE:
       if (UndoChangeClearSize (ptr))
 	return (UNDO_CHANGECLEARSIZE);
+      break;
+
+    case UNDO_CHANGEPASTESIZE:
+      if (UndoChangePasteSize (ptr))
+	return (UNDO_CHANGEPASTESIZE);
       break;
 
     case UNDO_CHANGEMASKSIZE:

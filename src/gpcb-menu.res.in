@@ -139,6 +139,7 @@ MainMenu =
     { "50 mil"   checked=gridsize,50mil SetUnits(mil) SetValue(Grid,50mil)}
     {"100 mil"   checked=gridsize,100mil SetUnits(mil) SetValue(Grid,100mil)}
     -
+    {"0.005 mm" checked=gridsize,0.005mm SetUnits(mm) SetValue(Grid,0.005mm)}
     {"0.01 mm" checked=gridsize,0.01mm SetUnits(mm) SetValue(Grid,0.01mm)}
     {"0.05 mm" checked=gridsize,0.05mm SetUnits(mm) SetValue(Grid,0.05mm)}
     {"0.1 mm"  checked=gridsize,0.10mm SetUnits(mm) SetValue(Grid,0.1mm)}
@@ -410,6 +411,8 @@ MainMenu =
     {"ChangeHole Object" a={"Ctrl-H" "Ctrl<Key>h"} ChangeHole(Object)}
     {"ChangeJoin Object" a={"J" "<Key>j"} ChangeJoin(Object)}
     {"ChangeJoin SelectedObject" a={"Shift-J" "Shift<Key>j"} ChangeJoin(SelectedObjects)}
+    {"Paste Object +" a={"P" "<Key>p"} ChangePasteSize(Object,+)}
+    {"Paste Object -" a={"Shift-P" "Shift<Key>p"} ChangePasteSize(Object,-)}
     {"Clear Object +" a={"K" "<Key>k"} ChangeClearSize(Object,+)}
     {"Clear Object -" a={"Shift-K" "Shift<Key>k"} ChangeClearSize(Object,-)}
     {"Clear Selected +" a={"Ctrl-K" "Ctrl<Key>k"} ChangeClearSize(SelectedObjects,+)}
@@ -426,8 +429,6 @@ MainMenu =
      AddRats(SelectedRats)
      Atomic(Block) }
     {"ChangeOctagon Object" a={"Ctrl-O" "Ctrl<Key>o"} ChangeOctagon(Object)}
-    {"Polygon PreviousPoint" a={"P" "<Key>p"} Polygon(PreviousPoint)}
-    {"Polygon Close" a={"Shift-P" "Shift<Key>p"} Polygon(Close)}
     {"ChangeSquare Object" a={"Q" "<Key>q"} ChangeSquare(ToggleObject)}
     {"ChangeSize +" a={"S" "<Key>s"} ChangeSize(Object,+)}
     {"ChangeSize -" a={"Shift-S" "Shift<Key>s"} ChangeSize(Object,-)}

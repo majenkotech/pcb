@@ -193,6 +193,7 @@ typedef enum
   F_ToggleGrid,
   F_ToggleHideNames,
   F_ToggleMask,
+  F_TogglePaste,
   F_ToggleName,
   F_ToggleObject,
   F_ToggleShowDRC,
@@ -428,6 +429,7 @@ static FunctionType Functions[] = {
   {"ToggleFullPoly", F_ToggleFullPoly},
   {"ToggleGrid", F_ToggleGrid},
   {"ToggleMask", F_ToggleMask},
+  {"TogglePaste", F_TogglePaste},
   {"ToggleName", F_ToggleName},
   {"ToggleObject", F_ToggleObject},
   {"ToggleRubberBandMode", F_ToggleRubberBandMode},
@@ -2592,6 +2594,9 @@ If set, only text will be sensitive for mouse clicks and actions that
 work on objects under the mouse. You can still select other objects
 with a lasso (left mouse drag) and perform actions on the selection.
 
+@item TogglePaste
+Turns the solder paste on or off.
+
 @item ToggleMask
 Turns the solder mask on or off.
 
@@ -2822,6 +2827,11 @@ ActionDisplay (int argc, char **argv, Coord childX, Coord childY)
 
 	case F_ToggleMask:
 	  TOGGLE_FLAG (SHOWMASKFLAG, PCB);
+	  Redraw ();
+	  break;
+
+	case F_TogglePaste:
+	  TOGGLE_FLAG (SHOWPASTEFLAG, PCB);
 	  Redraw ();
 	  break;
 
@@ -4221,6 +4231,13 @@ ActionChange2ndSize (int argc, char **argv, Coord x, Coord y)
 
 /* --------------------------------------------------------------------------- */
 
+static const char changepastesize_syntax[] =
+  N_("ChangePasteSize(Object, delta)\n"
+  "ChangePasteSize(SelectedPads, delta)\n");
+
+static const char changepastesize_help[] =
+  N_("Changes the solder paste size of objects.");
+
 static const char changeclearsize_syntax[] =
   N_("ChangeClearSize(Object, delta)\n"
   "ChangeClearSize(SelectedPins|SelectedPads|SelectedVias, delta)\n"
@@ -4292,6 +4309,51 @@ ActionChangeClearSize (int argc, char **argv, Coord x, Coord y)
 	case F_Selected:
 	case F_SelectedObjects:
 	  if (ChangeSelectedClearSize (CHANGECLEARSIZE_TYPES, value, absolute))
+	    SetChangedFlag (true);
+	  break;
+	}
+    }
+  return 0;
+}
+
+static int
+ActionChangePasteSize (int argc, char **argv, Coord x, Coord y)
+{
+  char *function = ARG (0);
+  char *delta = ARG (1);
+  char *units = ARG (2);
+  bool absolute;
+  Coord value;
+
+  if (function && delta)
+    {
+      value = 2 * GetValue (delta, units, &absolute);
+      if (value == 0)
+        value = delta[0] == '-' ? -Settings.increments->clear
+                                :  Settings.increments->clear;
+      switch (GetFunctionID (function))
+	{
+	case F_Object:
+	  {
+	    int type;
+	    void *ptr1, *ptr2, *ptr3;
+
+	    gui->get_coords (_("Select an Object"), &x, &y);
+	    if ((type =
+		 SearchScreen (x, y,
+			       CHANGECLEARSIZE_TYPES, &ptr1, &ptr2,
+			       &ptr3)) != NO_TYPE)
+	      if (ChangeObjectPasteSize (type, ptr1, ptr2, ptr3, value, absolute))
+		SetChangedFlag (true);
+	    break;
+	  }
+	case F_SelectedPads:
+	  if (ChangeSelectedPasteSize (PAD_TYPE, value, absolute))
+	    SetChangedFlag (true);
+	  break;
+	case F_Selected:
+	case F_SelectedObjects:
+	  if (ChangeSelectedPasteSize (CHANGECLEARSIZE_TYPES, value, absolute))
 	    SetChangedFlag (true);
 	  break;
 	}
@@ -8110,6 +8172,9 @@ HID_Action action_action_list[] = {
   ,
   {"AutoRoute", 0, ActionAutoRoute,
    autoroute_help, autoroute_syntax}
+  ,
+  {"ChangePasteSize", 0, ActionChangePasteSize,
+   changepastesize_help, changepastesize_syntax}
   ,
   {"ChangeClearSize", 0, ActionChangeClearSize,
    changeclearsize_help, changeclearsize_syntax}

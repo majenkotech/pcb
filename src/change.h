@@ -71,6 +71,7 @@ bool ChangeLayoutName (char *);
 bool ChangeLayerName (LayerType *, char *);
 bool ChangeSelectedSize (int, Coord, bool);
 bool ChangeSelectedClearSize (int, Coord, bool);
+bool ChangeSelectedPasteSize (int, Coord, bool);
 bool ChangeSelected2ndSize (int, Coord, bool);
 bool ChangeSelectedMaskSize (int, Coord, bool);
 bool ChangeSelectedJoin (int);

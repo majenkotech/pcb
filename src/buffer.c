@@ -1053,7 +1053,7 @@ ConvertBufferToElement (BufferType *Buffer)
 			line->Point1.Y, line->Point2.X,
 			line->Point2.Y, line->Thickness,
 			line->Clearance,
-			line->Thickness + line->Clearance, NULL,
+			line->Thickness + line->Clearance, line->Thickness + line->Clearance, NULL,
 			line->Number ? line->Number : num,
 			MakeFlags (onsolderflag));
 	  MAYBE_WARN();
@@ -1082,6 +1082,7 @@ ConvertBufferToElement (BufferType *Buffer)
 	  CreateNewPad (Element,
 			x1, y1, x2, y2, t,
 			2 * Settings.Keepaway,
+			t + Settings.Keepaway,
 			t + Settings.Keepaway,
 			NULL, num,
 			MakeFlags (SQUAREFLAG | onsolderflag));

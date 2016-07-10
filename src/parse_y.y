@@ -1511,6 +1511,7 @@ relementdef
 		| pin_hi_format
 		| pad_1.7_format
 		| pad_hi_format
+		| pad_st_format
 			/* x1, y1, x2, y2, thickness */
 		| T_ELEMENTLINE '[' measure measure measure measure measure ']'
 			{
@@ -1647,6 +1648,7 @@ pin_oldformat
 /* %start-doc pcbfile Pad
 
 @syntax
+Pad [rX1 rY1 rX2 rY2 Thickness Clearance Mask Paste "Name" "Number" SFlags]
 Pad [rX1 rY1 rX2 rY2 Thickness Clearance Mask "Name" "Number" SFlags]
 Pad (rX1 rY1 rX2 rY2 Thickness Clearance Mask "Name" "Number" NFlags)
 Pad (aX1 aY1 aX2 aY2 Thickness "Name" "Number" NFlags)
@@ -1667,6 +1669,8 @@ width of the pad.
 add to thickness to get clearance width.
 @item Mask
 width of solder mask opening.
+@item Paste
+width of solder paste opening.
 @item Name
 name of pin
 @item Number
@@ -1679,6 +1683,21 @@ numerical flags only
 
 %end-doc */
 
+pad_st_format
+			/* x1, y1, x2, y2, thickness, clearance, mask, paste, name , pad number, flags */
+		: T_PAD '[' measure measure measure measure measure measure measure measure STRING STRING flags ']'
+			{
+				CreateNewPad(yyElement, NU ($3) + yyElement->MarkX,
+					NU ($4) + yyElement->MarkY,
+					NU ($5) + yyElement->MarkX,
+					NU ($6) + yyElement->MarkY, 
+                    NU ($7), NU ($8), NU ($9), NU ($10),
+					$11, $12, $13);
+				free ($11);
+				free ($12);
+			}
+		;
+
 pad_hi_format
 			/* x1, y1, x2, y2, thickness, clearance, mask, name , pad number, flags */
 		: T_PAD '[' measure measure measure measure measure measure measure STRING STRING flags ']'
@@ -1686,7 +1705,7 @@ pad_hi_format
 				CreateNewPad(yyElement, NU ($3) + yyElement->MarkX,
 					NU ($4) + yyElement->MarkY,
 					NU ($5) + yyElement->MarkX,
-					NU ($6) + yyElement->MarkY, NU ($7), NU ($8), NU ($9),
+					NU ($6) + yyElement->MarkY, NU ($7), NU ($8), NU ($9), NU ($7),
 					$10, $11, $12);
 				free ($10);
 				free ($11);
@@ -1699,7 +1718,7 @@ pad_1.7_format
 			{
 				CreateNewPad(yyElement,OU ($3) + yyElement->MarkX,
 					OU ($4) + yyElement->MarkY, OU ($5) + yyElement->MarkX,
-					OU ($6) + yyElement->MarkY, OU ($7), OU ($8), OU ($9),
+					OU ($6) + yyElement->MarkY, OU ($7), OU ($8), OU ($9), OU ($7),
 					$10, $11, OldFlags($12));
 				free ($10);
 				free ($11);
@@ -1711,7 +1730,7 @@ pad_newformat
 		: T_PAD '(' measure measure measure measure measure STRING STRING INTEGER ')'
 			{
 				CreateNewPad(yyElement,OU ($3),OU ($4),OU ($5),OU ($6),OU ($7), 2*GROUNDPLANEFRAME,
-					OU ($7) + 2*MASKFRAME, $8, $9, OldFlags($10));
+					OU ($7) + 2*MASKFRAME, OU ($7) + 2*MASKFRAME, $8, $9, OldFlags($10));
 				free ($8);
 				free ($9);
 			}
@@ -1725,7 +1744,7 @@ pad
 
 				sprintf(p_number, "%d", pin_num++);
 				CreateNewPad(yyElement,OU ($3),OU ($4),OU ($5),OU ($6),OU ($7), 2*GROUNDPLANEFRAME,
-					OU ($7) + 2*MASKFRAME, $8,p_number, OldFlags($9));
+					OU ($7) + 2*MASKFRAME, OU ($7) + 2*MASKFRAME, $8,p_number, OldFlags($9));
 				free ($8);
 			}
 		;

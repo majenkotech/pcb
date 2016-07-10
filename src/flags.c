@@ -244,6 +244,7 @@ HID_Flag flags_flag_list[] = {
   {"clearnew",             FlagTESTFLAG,     GINT_TO_POINTER (CLEARNEWFLAG)},
   {"snappin",              FlagTESTFLAG,     GINT_TO_POINTER (SNAPPINFLAG)},
   {"showmask",             FlagTESTFLAG,     GINT_TO_POINTER (SHOWMASKFLAG)},
+  {"showpaste",            FlagTESTFLAG,     GINT_TO_POINTER (SHOWPASTEFLAG)},
   {"thindraw",             FlagTESTFLAG,     GINT_TO_POINTER (THINDRAWFLAG)},
   {"orthomove",            FlagTESTFLAG,     GINT_TO_POINTER (ORTHOMOVEFLAG)},
   {"liveroute",            FlagTESTFLAG,     GINT_TO_POINTER (LIVEROUTEFLAG)},

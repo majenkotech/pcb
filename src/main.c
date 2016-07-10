@@ -862,6 +862,7 @@ Color of the mask layer. Default value is @code{"#ff0000"}
 %end-doc
 */
   COLOR (MaskColor, "#ff0000", "mask-color", "color for solder mask"),
+  COLOR (PasteColor, "#dddddd", "paste-color", "color for solder paste"),
 
 
 /* %start-doc options "5 Sizes"

@@ -122,6 +122,7 @@ static FlagBitsType pcb_flagbits[] = {
   { NEWFULLPOLYFLAG, N ("newfullpoly"), ALL_TYPES },
   { SNAPPINFLAG, N ("snappin"), ALL_TYPES },
   { SHOWMASKFLAG, N ("showmask"), ALL_TYPES },
+  { SHOWPASTEFLAG, N ("showpaste"), ALL_TYPES },
   { THINDRAWFLAG, N ("thindraw"), ALL_TYPES },
   { ORTHOMOVEFLAG, N ("orthomove"), ALL_TYPES },
   { LIVEROUTEFLAG, N ("liveroute"), ALL_TYPES },

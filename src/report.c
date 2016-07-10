@@ -393,6 +393,7 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 		 "Width = %$mS.  Length = %$mS.\n"
 		 "Clearance width in polygons = %$mS.\n"
 		 "Solder mask = %$mS x %$mS (gap = %$mS).\n"
+		 "Solder paste = %$mS x %$mS (gap = %$mS).\n"
 		 "Name = \"%s\".\n"
 		 "It is owned by SMD element %s\n"
 		 "  as pin number %s and is on the %s\n"
@@ -405,6 +406,8 @@ ReportDialog (int argc, char **argv, Coord x, Coord y)
 		 Pad->Clearance / 2,
 		 Pad->Mask, len + Pad->Mask,
 		 (Pad->Mask - Pad->Thickness) / 2,
+		 Pad->Paste, len + Pad->Paste,
+		 (Pad->Paste - Pad->Thickness) / 2,
 		 EMPTY (Pad->Name),
 		 EMPTY (element->Name[1].TextString),
 		 EMPTY (Pad->Number),

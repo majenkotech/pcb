@@ -170,6 +170,10 @@ ghid_set_layer (const char *name, int group, int empty)
 	  if (SL_MYSIDE (idx))
 	    return TEST_FLAG (SHOWMASKFLAG, PCB);
 	  return 0;
+	case SL_PASTE:
+	  if (SL_MYSIDE (idx))
+	    return TEST_FLAG (SHOWPASTEFLAG, PCB);
+	  return 0;
 	case SL_SILK:
 	  priv->trans_lines = true;
 	  if (SL_MYSIDE (idx))
@@ -313,6 +317,16 @@ ghid_use_mask (enum mask_mode mode)
       g_return_if_reached ();
 
     case HID_MASK_CLEAR:
+      /* Write '1' to the stencil buffer where the solder-mask should not be drawn. */
+      glColorMask (0, 0, 0, 0);                             /* Disable writting in color buffer */
+      glEnable (GL_STENCIL_TEST);                           /* Enable Stencil test */
+      stencil_bit = hidgl_assign_clear_stencil_bit();       /* Get a new (clean) bitplane to stencil with */
+      glStencilFunc (GL_ALWAYS, stencil_bit, stencil_bit);  /* Always pass stencil test, write stencil_bit */
+      glStencilMask (stencil_bit);                          /* Only write to our subcompositing stencil bitplane */
+      glStencilOp (GL_KEEP, GL_KEEP, GL_REPLACE);           /* Stencil pass => replace stencil value (with 1) */
+      break;
+
+    case HID_MASK_PASTE:
       /* Write '1' to the stencil buffer where the solder-mask should not be drawn. */
       glColorMask (0, 0, 0, 0);                             /* Disable writting in color buffer */
       glEnable (GL_STENCIL_TEST);                           /* Enable Stencil test */

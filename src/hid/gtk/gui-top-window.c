@@ -514,6 +514,11 @@ layer_process (gchar **color_string, char **text, int *set, int i)
       *text = _( "solder mask");
       *set = TEST_FLAG (SHOWMASKFLAG, PCB);
       break;
+    case LAYER_BUTTON_PASTE:
+      *color_string = Settings.PasteColor;
+      *text = _( "solder paste");
+      *set = TEST_FLAG (SHOWPASTEFLAG, PCB);
+      break;
     default:		/* layers */
       *color_string = Settings.LayerColor[i];
       *text = (char *)UNKNOWN (PCB->Data->Layer[i].Name);
@@ -615,6 +620,13 @@ layer_selector_toggle_callback (GHidLayerSelector *ls, int layer, gpointer d)
         SET_FLAG (SHOWMASKFLAG, PCB);
       else
         CLEAR_FLAG (SHOWMASKFLAG, PCB);
+      redraw = TRUE;
+      break;
+    case LAYER_BUTTON_PASTE:
+      if (active)
+        SET_FLAG (SHOWPASTEFLAG, PCB);
+      else
+        CLEAR_FLAG (SHOWPASTEFLAG, PCB);
       redraw = TRUE;
       break;
     default:
@@ -809,6 +821,9 @@ make_virtual_layer_buttons (GtkWidget *layer_selector)
                                  text, color_string, active, FALSE, FALSE);
   layer_process (&color_string, &text, &active, LAYER_BUTTON_MASK);
   ghid_layer_selector_add_layer (layersel, LAYER_BUTTON_MASK,
+                                 text, color_string, active, FALSE, FALSE);
+  layer_process (&color_string, &text, &active, LAYER_BUTTON_PASTE);
+  ghid_layer_selector_add_layer (layersel, LAYER_BUTTON_PASTE,
                                  text, color_string, active, FALSE, FALSE);
 }
 
@@ -1912,6 +1927,8 @@ ToggleView (int argc, char **argv, Coord x, Coord y)
     l = LAYER_BUTTON_VIAS;
   else if (strcmp (argv[0], "Mask") == 0)
     l = LAYER_BUTTON_MASK;
+  else if (strcmp (argv[0], "Paste") == 0)
+    l = LAYER_BUTTON_PASTE;
   else if (strcmp (argv[0], "BackSide") == 0)
     l = LAYER_BUTTON_FARSIDE;
   else

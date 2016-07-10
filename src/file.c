@@ -740,12 +740,12 @@ WriteElementData (FILE * FP, DataType *Data)
       for (p = element->Pad; p != NULL; p = g_list_next (p))
 	{
 	  PadType *pad = p->data;
-          pcb_fprintf (FP, "\tPad[%mr %mr %mr %mr %mr %mr %mr ",
+          pcb_fprintf (FP, "\tPad[%mr %mr %mr %mr %mr %mr %mr %mr ",
                        pad->Point1.X - element->MarkX,
                        pad->Point1.Y - element->MarkY,
                        pad->Point2.X - element->MarkX,
                        pad->Point2.Y - element->MarkY,
-                       pad->Thickness, pad->Clearance, pad->Mask);
+                       pad->Thickness, pad->Clearance, pad->Mask, pad->Paste);
 	  PrintQuotedString (FP, (char *)EMPTY (pad->Name));
 	  fprintf (FP, " ");
 	  PrintQuotedString (FP, (char *)EMPTY (pad->Number));
@@ -1209,13 +1209,7 @@ LoadNewlibFootprintsFromDir(char *libpath, char *toppath, bool recursive)
     l = strlen (subdirentry->d_name);
     if (!stat (subdirentry->d_name, &buffer) && S_ISREG (buffer.st_mode)
       && subdirentry->d_name[0] != '.'
-      && NSTRCMP (subdirentry->d_name, "CVS") != 0
-      && NSTRCMP (subdirentry->d_name, "Makefile") != 0
-      && NSTRCMP (subdirentry->d_name, "Makefile.am") != 0
-      && NSTRCMP (subdirentry->d_name, "Makefile.in") != 0
-      && (l < 4 || NSTRCMP(subdirentry->d_name + (l - 4), ".png") != 0) 
-      && (l < 5 || NSTRCMP(subdirentry->d_name + (l - 5), ".html") != 0)
-      && (l < 4 || NSTRCMP(subdirentry->d_name + (l - 4), ".pcb") != 0) )
+      && (l < 5 || NSTRCMP(subdirentry->d_name + (l - 3), ".fp") == 0))
       {
 #ifdef DEBUG
 /*	printf("...  Found a footprint %s ... \n", subdirentry->d_name); */

@@ -158,7 +158,7 @@ CopyElementLowLevel (DataType *Data, ElementType *Src,
   {
     CreateNewPad (Dest, pad->Point1.X + dx, pad->Point1.Y + dy,
 		  pad->Point2.X + dx, pad->Point2.Y + dy, pad->Thickness,
-		  pad->Clearance, pad->Mask, pad->Name, pad->Number,
+		  pad->Clearance, pad->Mask, pad->Paste, pad->Name, pad->Number,
 		  MaskFlags (pad->Flags, mask_flags));
   }
   END_LOOP;

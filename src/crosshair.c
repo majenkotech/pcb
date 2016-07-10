@@ -247,7 +247,7 @@ XORDrawElement (hidGC gc, ElementType *Element, Coord DX, Coord DY)
         moved_pad.Point1.X += DX; moved_pad.Point1.Y += DY;
         moved_pad.Point2.X += DX; moved_pad.Point2.Y += DY;
 
-        gui->graphics->thindraw_pcb_pad (gc, &moved_pad, false, false);
+        gui->graphics->thindraw_pcb_pad (gc, &moved_pad, false, false, false);
       }
   }
   END_LOOP;

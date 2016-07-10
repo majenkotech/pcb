@@ -36,7 +36,8 @@ enum mask_mode
   HID_MASK_OFF    = 0, /*!< Flush the buffer and return to non-mask operation. */
   HID_MASK_BEFORE = 1, /*!< Polygons being drawn before clears.                */
   HID_MASK_CLEAR  = 2, /*!< Clearances being drawn.                            */
-  HID_MASK_AFTER  = 3, /*!< Polygons being drawn after clears.                 */
+  HID_MASK_PASTE  = 3, /*!< Solder paste being drawn.                            */
+  HID_MASK_AFTER  = 4, /*!< Polygons being drawn after clears.                 */
 };
 
 
@@ -98,8 +99,8 @@ struct hid_draw_st
 
   void (*fill_pcb_polygon) (hidGC gc, PolygonType *poly, const BoxType *clip_box);
   void (*thindraw_pcb_polygon) (hidGC gc, PolygonType *poly, const BoxType *clip_box);
-  void (*fill_pcb_pad) (hidGC gc, PadType *pad, bool clip, bool mask);
-  void (*thindraw_pcb_pad) (hidGC gc, PadType *pad, bool clip, bool mask);
+  void (*fill_pcb_pad) (hidGC gc, PadType *pad, bool clip, bool mask, bool paste);
+  void (*thindraw_pcb_pad) (hidGC gc, PadType *pad, bool clip, bool mask, bool paste);
   void (*fill_pcb_pv) (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bool mask);
   void (*thindraw_pcb_pv) (hidGC fg_gc, hidGC bg_gc, PinType *pv, bool drawHole, bool mask);
 

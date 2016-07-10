@@ -54,7 +54,8 @@
 #define LAYER_BUTTON_VIAS     (MAX_ALL_LAYER + 1)
 #define LAYER_BUTTON_FARSIDE  (MAX_ALL_LAYER + 2)
 #define LAYER_BUTTON_MASK     (MAX_ALL_LAYER + 3)
-#define N_LAYER_BUTTONS       (MAX_ALL_LAYER + 4)
+#define LAYER_BUTTON_PASTE     (MAX_ALL_LAYER + 4)
+#define N_LAYER_BUTTONS       (MAX_ALL_LAYER + 5)
 
   /* Go from from the grid units in use (millimeters or mils) to PCB units
      |  and back again.

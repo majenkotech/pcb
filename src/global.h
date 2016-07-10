@@ -372,6 +372,7 @@ struct pad_st
 {
   ANYLINEFIELDS;
   Coord Mask;
+  Coord Paste;
   char *Name, *Number; /*!< 'Line'. */
   void *Element;
   void *Spare;
@@ -597,7 +598,8 @@ typedef struct PCBType
     *ConnectedColor, /*!< Connected color. */
     *FoundColor, /*!< Found color. */
     *WarnColor, /*!< Warning color. */
-    *MaskColor; /*!< Mask color. */
+    *MaskColor, /*!< Mask color. */
+    *PasteColor; /*!< Mask color. */
   long CursorX, /*!< Cursor position as saved with layout (X value). */
     CursorY, /*!< Cursor position as saved with layout (Y value). */
     Clipping;
@@ -761,7 +763,8 @@ typedef struct
     *LayerColor[MAX_LAYER],
     *LayerSelectedColor[MAX_LAYER],
     *WarnColor, /*!< Warning color. */
-    *MaskColor; /*!< Mask color. */
+    *MaskColor, /*!< Mask color. */
+    *PasteColor; /*!< Mask color. */
   Coord ViaThickness, /*!< Default via thickness value. */
     ViaDrillingHole, /*!< Default via drill hole value. */
     LineThickness, /*!< Default line thickness value. */
@@ -973,6 +976,7 @@ struct drc_violation_st
 #define	UNDO_LAYERCHANGE	       0x20000	/*!< Layer new/delete/move. */
 #define	UNDO_CLEAR		       0x40000	/*!< Clear/restore to polygons. */
 #define	UNDO_NETLISTCHANGE	       0x80000	/*!< Netlist change. */
+#define	UNDO_CHANGEPASTESIZE		0x100000	/*!< Change paste size. */
 
 /* ---------------------------------------------------------------------------
  */
