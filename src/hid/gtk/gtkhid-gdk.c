@@ -537,12 +537,13 @@ void
 ghid_draw_line (hidGC gc, Coord x1, Coord y1, Coord x2, Coord y2)
 {
   double dx1, dy1, dx2, dy2;
+  double cdx1, cdy1, cdx2, cdy2;
   render_priv *priv = gport->render_priv;
 
-  dx1 = Vx ((double) x1);
-  dy1 = Vy ((double) y1);
-  dx2 = Vx ((double) x2);
-  dy2 = Vy ((double) y2);
+  cdx1 = dx1 = Vx ((double) x1);
+  cdy1 = dy1 = Vy ((double) y1);
+  cdx2 = dx2 = Vx ((double) x2);
+  cdy2 = dy2 = Vy ((double) y2);
 
   if (!ClipLine (0, 0, gport->width, gport->height,
 		 &dx1, &dy1, &dx2, &dy2, gc->width / gport->view.coord_per_px))

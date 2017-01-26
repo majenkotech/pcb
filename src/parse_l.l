@@ -114,6 +114,7 @@ Rat		{ return(T_RAT); }
 Rectangle	{ return(T_RECTANGLE); }
 Text		{ return(T_TEXT); }
 ElementLine	{ return(T_ELEMENTLINE); }
+ElementPoly	{ return(T_ELEMENTPOLY); }
 ElementArc	{ return(T_ELEMENTARC); }
 Element		{ return(T_ELEMENT); }
 SymbolLine	{ return(T_SYMBOLLINE); }

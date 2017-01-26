@@ -74,18 +74,18 @@ static void *CopyElement (ElementType *);
  */
 static Coord DeltaX, DeltaY;	/* movement vector */
 static ObjectFunctionType CopyFunctions = {
-  CopyLine,
-  CopyText,
-  CopyPolygon,
-  CopyVia,
-  CopyElement,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  CopyArc,
-  NULL
+    CopyLine,
+    CopyText,
+    CopyPolygon,
+    CopyVia,
+    CopyElement,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    CopyArc,
+    NULL
 };
 
 /*!
@@ -94,24 +94,23 @@ static ObjectFunctionType CopyFunctions = {
  * 'Dest' has to exist.
  */
 PolygonType *
-CopyPolygonLowLevel (PolygonType *Dest, PolygonType *Src)
-{
-  Cardinal hole = 0;
-  Cardinal n;
+CopyPolygonLowLevel (PolygonType *Dest, PolygonType *Src) {
+    Cardinal hole = 0;
+    Cardinal n;
 
-  for (n = 0; n < Src->PointN; n++)
-    {
-      if (hole < Src->HoleIndexN && n == Src->HoleIndex[hole])
-        {
-          CreateNewHoleInPolygon (Dest);
-          hole++;
+    for (n = 0; n < Src->PointN; n++) {
+        if (hole < Src->HoleIndexN && n == Src->HoleIndex[hole]) {
+            CreateNewHoleInPolygon (Dest);
+            hole++;
         }
-      CreateNewPointInPolygon (Dest, Src->Points[n].X, Src->Points[n].Y);
+
+        CreateNewPointInPolygon (Dest, Src->Points[n].X, Src->Points[n].Y);
     }
-  SetPolygonBoundingBox (Dest);
-  Dest->Flags = Src->Flags;
-  CLEAR_FLAG (NOCOPY_FLAGS, Dest);
-  return (Dest);
+
+    SetPolygonBoundingBox (Dest);
+    Dest->Flags = Src->Flags;
+    CLEAR_FLAG (NOCOPY_FLAGS, Dest);
+    return (Dest);
 }
 
 /*!
@@ -120,197 +119,204 @@ CopyPolygonLowLevel (PolygonType *Dest, PolygonType *Src)
  */
 ElementType *
 CopyElementLowLevel (DataType *Data, ElementType *Src,
-                     bool uniqueName, Coord dx, Coord dy, int mask_flags)
-{
-  int i;
-  ElementType *Dest;
+                     bool uniqueName, Coord dx, Coord dy, int mask_flags) {
+    int i;
+    ElementType *Dest;
+    PolygonType *Polygon;
+    /* both coordinates and flags are the same */
+    Dest = CreateNewElement (Data, &PCB->Font,
+                             MaskFlags (Src->Flags, mask_flags),
+                             DESCRIPTION_NAME (Src), NAMEONPCB_NAME (Src),
+                             VALUE_NAME (Src), DESCRIPTION_TEXT (Src).X + dx,
+                             DESCRIPTION_TEXT (Src).Y + dy,
+                             DESCRIPTION_TEXT (Src).Direction,
+                             DESCRIPTION_TEXT (Src).Scale,
+                             MaskFlags (DESCRIPTION_TEXT (Src).Flags,
+                                        mask_flags), uniqueName);
 
-  /* both coordinates and flags are the same */
-  Dest = CreateNewElement (Data, &PCB->Font,
-			   MaskFlags (Src->Flags, mask_flags),
-			   DESCRIPTION_NAME (Src), NAMEONPCB_NAME (Src),
-			   VALUE_NAME (Src), DESCRIPTION_TEXT (Src).X + dx,
-			   DESCRIPTION_TEXT (Src).Y + dy,
-			   DESCRIPTION_TEXT (Src).Direction,
-			   DESCRIPTION_TEXT (Src).Scale,
-			   MaskFlags (DESCRIPTION_TEXT (Src).Flags,
-				      mask_flags), uniqueName);
+    /* abort on error */
+    if (!Dest) {
+        return (Dest);
+    }
 
-  /* abort on error */
-  if (!Dest)
+    ELEMENTLINE_LOOP (Src);
+    {
+        CreateNewLineInElement (Dest, line->Point1.X + dx,
+                                line->Point1.Y + dy, line->Point2.X + dx,
+                                line->Point2.Y + dy, line->Thickness);
+    }
+    END_LOOP;
+    PIN_LOOP (Src);
+    {
+        CreateNewPin (Dest, pin->X + dx, pin->Y + dy, pin->Thickness,
+                      pin->Clearance, pin->Mask, pin->DrillingHole,
+                      pin->Name, pin->Number, MaskFlags (pin->Flags, mask_flags));
+    }
+    END_LOOP;
+    PAD_LOOP (Src);
+    {
+        CreateNewPad (Dest, pad->Point1.X + dx, pad->Point1.Y + dy,
+                      pad->Point2.X + dx, pad->Point2.Y + dy, pad->Thickness,
+                      pad->Clearance, pad->Mask, pad->Paste, pad->Name, pad->Number,
+                      MaskFlags (pad->Flags, mask_flags));
+    }
+    END_LOOP;
+    ARC_LOOP (Src);
+    {
+        CreateNewArcInElement (Dest, arc->X + dx, arc->Y + dy, arc->Width,
+                               arc->Height, arc->StartAngle, arc->Delta,
+                               arc->Thickness);
+    }
+    END_LOOP;
+    POLYGON_LOOP (Src);
+    {
+        Polygon = CreateNewPolygonInElement(Dest, polygon->Flags);
+        CopyPolygonLowLevel(Polygon, polygon);
+        MovePolygonLowLevel(Polygon, dx, dy);
+    }
+    END_LOOP;
+
+    for (i = 0; i < Src->Attributes.Number; i++)
+        CreateNewAttribute (& Dest->Attributes,
+                            Src->Attributes.List[i].name,
+                            Src->Attributes.List[i].value);
+
+    Dest->MarkX = Src->MarkX + dx;
+    Dest->MarkY = Src->MarkY + dy;
+    SetElementBoundingBox (Data, Dest, &PCB->Font);
     return (Dest);
-
-  ELEMENTLINE_LOOP (Src);
-  {
-    CreateNewLineInElement (Dest, line->Point1.X + dx,
-			    line->Point1.Y + dy, line->Point2.X + dx,
-			    line->Point2.Y + dy, line->Thickness);
-  }
-  END_LOOP;
-  PIN_LOOP (Src);
-  {
-    CreateNewPin (Dest, pin->X + dx, pin->Y + dy, pin->Thickness,
-		  pin->Clearance, pin->Mask, pin->DrillingHole,
-		  pin->Name, pin->Number, MaskFlags (pin->Flags, mask_flags));
-  }
-  END_LOOP;
-  PAD_LOOP (Src);
-  {
-    CreateNewPad (Dest, pad->Point1.X + dx, pad->Point1.Y + dy,
-		  pad->Point2.X + dx, pad->Point2.Y + dy, pad->Thickness,
-		  pad->Clearance, pad->Mask, pad->Paste, pad->Name, pad->Number,
-		  MaskFlags (pad->Flags, mask_flags));
-  }
-  END_LOOP;
-  ARC_LOOP (Src);
-  {
-    CreateNewArcInElement (Dest, arc->X + dx, arc->Y + dy, arc->Width,
-			   arc->Height, arc->StartAngle, arc->Delta,
-			   arc->Thickness);
-  }
-  END_LOOP;
-
-  for (i=0; i<Src->Attributes.Number; i++)
-    CreateNewAttribute (& Dest->Attributes,
-			Src->Attributes.List[i].name,
-			Src->Attributes.List[i].value);
-
-  Dest->MarkX = Src->MarkX + dx;
-  Dest->MarkY = Src->MarkY + dy;
-
-  SetElementBoundingBox (Data, Dest, &PCB->Font);
-  return (Dest);
 }
 
 /*!
  * \brief Copies a via.
  */
 static void *
-CopyVia (PinType *Via)
-{
-  PinType *via;
+CopyVia (PinType *Via) {
+    PinType *via;
+    via = CreateNewVia (PCB->Data, Via->X + DeltaX, Via->Y + DeltaY,
+                        Via->Thickness, Via->Clearance, Via->Mask,
+                        Via->DrillingHole, Via->Name,
+                        MaskFlags (Via->Flags, NOCOPY_FLAGS));
 
-  via = CreateNewVia (PCB->Data, Via->X + DeltaX, Via->Y + DeltaY,
-		      Via->Thickness, Via->Clearance, Via->Mask,
-		      Via->DrillingHole, Via->Name,
-		      MaskFlags (Via->Flags, NOCOPY_FLAGS));
-  if (!via)
+    if (!via) {
+        return (via);
+    }
+
+    DrawVia (via);
+    AddObjectToCreateUndoList (VIA_TYPE, via, via, via);
     return (via);
-  DrawVia (via);
-  AddObjectToCreateUndoList (VIA_TYPE, via, via, via);
-  return (via);
 }
 
 /*!
  * \brief Copies a line.
  */
 static void *
-CopyLine (LayerType *Layer, LineType *Line)
-{
-  LineType *line;
+CopyLine (LayerType *Layer, LineType *Line) {
+    LineType *line;
+    line = CreateDrawnLineOnLayer (Layer, Line->Point1.X + DeltaX,
+                                   Line->Point1.Y + DeltaY,
+                                   Line->Point2.X + DeltaX,
+                                   Line->Point2.Y + DeltaY, Line->Thickness,
+                                   Line->Clearance,
+                                   MaskFlags (Line->Flags, NOCOPY_FLAGS));
 
-  line = CreateDrawnLineOnLayer (Layer, Line->Point1.X + DeltaX,
-				 Line->Point1.Y + DeltaY,
-				 Line->Point2.X + DeltaX,
-				 Line->Point2.Y + DeltaY, Line->Thickness,
-				 Line->Clearance,
-				 MaskFlags (Line->Flags, NOCOPY_FLAGS));
-  if (!line)
+    if (!line) {
+        return (line);
+    }
+
+    if (Line->Number) {
+        line->Number = strdup (Line->Number);
+    }
+
+    DrawLine (Layer, line);
+    AddObjectToCreateUndoList (LINE_TYPE, Layer, line, line);
     return (line);
-  if (Line->Number)
-    line->Number = strdup (Line->Number);
-  DrawLine (Layer, line);
-  AddObjectToCreateUndoList (LINE_TYPE, Layer, line, line);
-  return (line);
 }
 
 /*!
  * \brief Copies an arc.
  */
 static void *
-CopyArc (LayerType *Layer, ArcType *Arc)
-{
-  ArcType *arc;
+CopyArc (LayerType *Layer, ArcType *Arc) {
+    ArcType *arc;
+    arc = CreateNewArcOnLayer (Layer, Arc->X + DeltaX,
+                               Arc->Y + DeltaY, Arc->Width, Arc->Height, Arc->StartAngle,
+                               Arc->Delta, Arc->Thickness, Arc->Clearance,
+                               MaskFlags (Arc->Flags, NOCOPY_FLAGS));
 
-  arc = CreateNewArcOnLayer (Layer, Arc->X + DeltaX,
-			     Arc->Y + DeltaY, Arc->Width, Arc->Height, Arc->StartAngle,
-			     Arc->Delta, Arc->Thickness, Arc->Clearance,
-			     MaskFlags (Arc->Flags, NOCOPY_FLAGS));
-  if (!arc)
+    if (!arc) {
+        return (arc);
+    }
+
+    DrawArc (Layer, arc);
+    AddObjectToCreateUndoList (ARC_TYPE, Layer, arc, arc);
     return (arc);
-  DrawArc (Layer, arc);
-  AddObjectToCreateUndoList (ARC_TYPE, Layer, arc, arc);
-  return (arc);
 }
 
 /*!
  * \brief Copies a text.
  */
 static void *
-CopyText (LayerType *Layer, TextType *Text)
-{
-  TextType *text;
-
-  text = CreateNewText (Layer, &PCB->Font, Text->X + DeltaX,
-			Text->Y + DeltaY, Text->Direction,
-			Text->Scale, Text->TextString,
-			MaskFlags (Text->Flags, NOCOPY_FLAGS));
-  DrawText (Layer, text);
-  AddObjectToCreateUndoList (TEXT_TYPE, Layer, text, text);
-  return (text);
+CopyText (LayerType *Layer, TextType *Text) {
+    TextType *text;
+    text = CreateNewText (Layer, &PCB->Font, Text->X + DeltaX,
+                          Text->Y + DeltaY, Text->Direction,
+                          Text->Scale, Text->TextString,
+                          MaskFlags (Text->Flags, NOCOPY_FLAGS));
+    DrawText (Layer, text);
+    AddObjectToCreateUndoList (TEXT_TYPE, Layer, text, text);
+    return (text);
 }
 
 /*!
  * \brief Copies a polygon.
  */
 static void *
-CopyPolygon (LayerType *Layer, PolygonType *Polygon)
-{
-  PolygonType *polygon;
+CopyPolygon (LayerType *Layer, PolygonType *Polygon) {
+    PolygonType *polygon;
+    polygon = CreateNewPolygon (Layer, NoFlags ());
+    CopyPolygonLowLevel (polygon, Polygon);
+    MovePolygonLowLevel (polygon, DeltaX, DeltaY);
 
-  polygon = CreateNewPolygon (Layer, NoFlags ());
-  CopyPolygonLowLevel (polygon, Polygon);
-  MovePolygonLowLevel (polygon, DeltaX, DeltaY);
-  if (!Layer->polygon_tree)
-    Layer->polygon_tree = r_create_tree (NULL, 0, 0);
-  r_insert_entry (Layer->polygon_tree, (BoxType *) polygon, 0);
-  InitClip (PCB->Data, Layer, polygon);
-  DrawPolygon (Layer, polygon);
-  AddObjectToCreateUndoList (POLYGON_TYPE, Layer, polygon, polygon);
-  return (polygon);
+    if (!Layer->polygon_tree) {
+        Layer->polygon_tree = r_create_tree (NULL, 0, 0);
+    }
+
+    r_insert_entry (Layer->polygon_tree, (BoxType *) polygon, 0);
+    InitClip (PCB->Data, Layer, polygon);
+    DrawPolygon (Layer, polygon);
+    AddObjectToCreateUndoList (POLYGON_TYPE, Layer, polygon, polygon);
+    return (polygon);
 }
 
 /*!
  * \brief Copies an element onto the PCB, then does a draw.
  */
 static void *
-CopyElement (ElementType *Element)
-{
+CopyElement (ElementType *Element) {
+#ifdef DEBUG
+    printf("Entered CopyElement, trying to copy element %s\n",
+           Element->Name[1].TextString);
+#endif
+    ElementType *element = CopyElementLowLevel (PCB->Data, Element,
+                           TEST_FLAG (UNIQUENAMEFLAG, PCB),
+                           DeltaX, DeltaY, NOCOPY_FLAGS);
+    /* this call clears the polygons */
+    AddObjectToCreateUndoList (ELEMENT_TYPE, element, element, element);
+
+    if (PCB->ElementOn && (FRONT (element) || PCB->InvisibleObjectsOn)) {
+        DrawElementName (element);
+        DrawElementPackage (element);
+    }
+
+    if (PCB->PinOn) {
+        DrawElementPinsAndPads (element);
+    }
 
 #ifdef DEBUG
-  printf("Entered CopyElement, trying to copy element %s\n",
-	 Element->Name[1].TextString);
+    printf(" ... Leaving CopyElement.\n");
 #endif
-
-  ElementType *element = CopyElementLowLevel (PCB->Data, Element,
-                                              TEST_FLAG (UNIQUENAMEFLAG, PCB),
-                                              DeltaX, DeltaY, NOCOPY_FLAGS);
-
-  /* this call clears the polygons */
-  AddObjectToCreateUndoList (ELEMENT_TYPE, element, element, element);
-  if (PCB->ElementOn && (FRONT (element) || PCB->InvisibleObjectsOn))
-    {
-      DrawElementName (element);
-      DrawElementPackage (element);
-    }
-  if (PCB->PinOn)
-    {
-      DrawElementPinsAndPads (element);
-    }
-#ifdef DEBUG
-  printf(" ... Leaving CopyElement.\n");
-#endif
-  return (element);
+    return (element);
 }
 
 /*!
@@ -319,93 +325,84 @@ CopyElement (ElementType *Element)
  * \note Only visible objects are handled by the routine.
  */
 bool
-CopyPastebufferToLayout (Coord X, Coord Y)
-{
-  Cardinal i;
-  bool changed = false;
-
+CopyPastebufferToLayout (Coord X, Coord Y) {
+    Cardinal i;
+    bool changed = false;
 #ifdef DEBUG
-  printf("Entering CopyPastebufferToLayout.....\n");
+    printf("Entering CopyPastebufferToLayout.....\n");
+#endif
+    /* set movement vector */
+    DeltaX = X - PASTEBUFFER->X, DeltaY = Y - PASTEBUFFER->Y;
+
+    /* paste all layers */
+    for (i = 0; i < max_copper_layer + SILK_LAYER; i++) {
+        LayerType *sourcelayer = &PASTEBUFFER->Data->Layer[i];
+        LayerType *destlayer = LAYER_PTR (i);
+
+        if (destlayer->On) {
+            changed = changed ||
+                      (sourcelayer->LineN != 0) ||
+                      (sourcelayer->ArcN != 0) ||
+                      (sourcelayer->PolygonN != 0) || (sourcelayer->TextN != 0);
+            LINE_LOOP (sourcelayer);
+            {
+                CopyLine (destlayer, line);
+            }
+            END_LOOP;
+            ARC_LOOP (sourcelayer);
+            {
+                CopyArc (destlayer, arc);
+            }
+            END_LOOP;
+            TEXT_LOOP (sourcelayer);
+            {
+                CopyText (destlayer, text);
+            }
+            END_LOOP;
+            POLYGON_LOOP (sourcelayer);
+            {
+                CopyPolygon (destlayer, polygon);
+            }
+            END_LOOP;
+        }
+    }
+
+    /* paste elements */
+    if (PCB->PinOn && PCB->ElementOn) {
+        ELEMENT_LOOP (PASTEBUFFER->Data);
+        {
+#ifdef DEBUG
+            printf("In CopyPastebufferToLayout, pasting element %s\n",
+                   element->Name[1].TextString);
 #endif
 
-  /* set movement vector */
-  DeltaX = X - PASTEBUFFER->X, DeltaY = Y - PASTEBUFFER->Y;
-
-  /* paste all layers */
-  for (i = 0; i < max_copper_layer + SILK_LAYER; i++)
-    {
-      LayerType *sourcelayer = &PASTEBUFFER->Data->Layer[i];
-      LayerType *destlayer = LAYER_PTR (i);
-
-      if (destlayer->On)
-	{
-	  changed = changed ||
-	    (sourcelayer->LineN != 0) ||
-	    (sourcelayer->ArcN != 0) ||
-	    (sourcelayer->PolygonN != 0) || (sourcelayer->TextN != 0);
-	  LINE_LOOP (sourcelayer);
-	  {
-	    CopyLine (destlayer, line);
-	  }
-	  END_LOOP;
-	  ARC_LOOP (sourcelayer);
-	  {
-	    CopyArc (destlayer, arc);
-	  }
-	  END_LOOP;
-	  TEXT_LOOP (sourcelayer);
-	  {
-	    CopyText (destlayer, text);
-	  }
-	  END_LOOP;
-	  POLYGON_LOOP (sourcelayer);
-	  {
-	    CopyPolygon (destlayer, polygon);
-	  }
-	  END_LOOP;
-	}
+            if (FRONT (element) || PCB->InvisibleObjectsOn) {
+                CopyElement (element);
+                changed = true;
+            }
+        }
+        END_LOOP;
     }
 
-  /* paste elements */
-  if (PCB->PinOn && PCB->ElementOn)
-    {
-      ELEMENT_LOOP (PASTEBUFFER->Data);
-      {
-#ifdef DEBUG
-	printf("In CopyPastebufferToLayout, pasting element %s\n",
-	      element->Name[1].TextString);
-#endif
-	if (FRONT (element) || PCB->InvisibleObjectsOn)
-	  {
-	    CopyElement (element);
-	    changed = true;
-	  }
-      }
-      END_LOOP;
+    /* finally the vias */
+    if (PCB->ViaOn) {
+        changed |= (PASTEBUFFER->Data->ViaN != 0);
+        VIA_LOOP (PASTEBUFFER->Data);
+        {
+            CopyVia (via);
+        }
+        END_LOOP;
     }
 
-  /* finally the vias */
-  if (PCB->ViaOn)
-    {
-      changed |= (PASTEBUFFER->Data->ViaN != 0);
-      VIA_LOOP (PASTEBUFFER->Data);
-      {
-	CopyVia (via);
-      }
-      END_LOOP;
-    }
-
-  if (changed)
-    {
-      Draw ();
-      IncrementUndoSerialNumber ();
+    if (changed) {
+        Draw ();
+        IncrementUndoSerialNumber ();
     }
 
 #ifdef DEBUG
-  printf("  .... Leaving CopyPastebufferToLayout.\n");
+    printf("  .... Leaving CopyPastebufferToLayout.\n");
 #endif
-
-  return (changed);
+    return (changed);
 }
 
 /*!
@@ -416,16 +413,13 @@ CopyPastebufferToLayout (Coord X, Coord Y)
  */
 void *
 CopyObject (int Type, void *Ptr1, void *Ptr2, void *Ptr3,
-	    Coord DX, Coord DY)
-{
-  void *ptr;
-
-  /* setup movement vector */
-  DeltaX = DX;
-  DeltaY = DY;
-
-  /* the subroutines add the objects to the undo-list */
-  ptr = ObjectOperation (&CopyFunctions, Type, Ptr1, Ptr2, Ptr3);
-  IncrementUndoSerialNumber ();
-  return (ptr);
+            Coord DX, Coord DY) {
+    void *ptr;
+    /* setup movement vector */
+    DeltaX = DX;
+    DeltaY = DY;
+    /* the subroutines add the objects to the undo-list */
+    ptr = ObjectOperation (&CopyFunctions, Type, Ptr1, Ptr2, Ptr3);
+    IncrementUndoSerialNumber ();
+    return (ptr);
 }

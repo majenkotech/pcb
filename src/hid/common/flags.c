@@ -203,6 +203,11 @@ layer_type_to_file_name (int idx, int style)
 	{
 	  return "outline";
 	}
+      else if (nlayers == 1
+	       && (strcmp (PCB->Data->Layer[idx].Name, "fab") == 0))
+	{
+	  return "fab";
+	}
       else
 	{
 	  static char buf[20];

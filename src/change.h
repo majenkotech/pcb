@@ -74,6 +74,7 @@ bool ChangeSelectedClearSize (int, Coord, bool);
 bool ChangeSelectedPasteSize (int, Coord, bool);
 bool ChangeSelected2ndSize (int, Coord, bool);
 bool ChangeSelectedMaskSize (int, Coord, bool);
+bool ChangeSelectedPasteSize (int, Coord, bool);
 bool ChangeSelectedJoin (int);
 bool SetSelectedJoin (int);
 bool ClrSelectedJoin (int);
@@ -97,6 +98,8 @@ bool ChangeObjectClearSize (int, void *, void *, void *, Coord,
 bool ChangeObject2ndSize (int, void *, void *, void *, Coord,
 			     bool, bool);
 bool ChangeObjectMaskSize (int, void *, void *, void *, Coord,
+			      bool);
+bool ChangeObjectPasteSize (int, void *, void *, void *, Coord,
 			      bool);
 bool ChangeObjectJoin (int, void *, void *, void *);
 bool SetObjectJoin (int, void *, void *, void *);

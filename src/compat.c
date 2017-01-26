@@ -40,25 +40,22 @@
 
 #ifndef HAVE_EXPF
 float
-expf (float x)
-{
-  return (float) exp ((double) x);
+expf (float x) {
+    return (float) exp ((double) x);
 }
 #endif
 
 #ifndef HAVE_LOGF
 float
-logf (float x)
-{
-  return (float) log ((double) x);
+logf (float x) {
+    return (float) log ((double) x);
 }
 #endif
 
 #ifndef HAVE_RANDOM
 long
-random (void)
-{
-  return (long) rand ();
+random (void) {
+    return (long) rand ();
 }
 #endif
 
@@ -66,48 +63,43 @@ random (void)
 #include <windows.h>
 
 void *
-dlopen (const char * f, int ATTRIBUTE_UNUSED flag)
-{
-  return LoadLibrary (f);
+dlopen (const char * f, int ATTRIBUTE_UNUSED flag) {
+    return LoadLibrary (f);
 }
 
 void
-dlclose (void * h)
-{
-  FreeLibrary ((HINSTANCE) h);
+dlclose (void * h) {
+    FreeLibrary ((HINSTANCE) h);
 }
 
 char *
-dlerror ()
-{
-  static LPVOID lpMsgBuf = NULL;
-  DWORD dw;
+dlerror () {
+    static LPVOID lpMsgBuf = NULL;
+    DWORD dw;
 
-  /* free the error message buffer */
-  if (lpMsgBuf)
-    LocalFree (lpMsgBuf);
+    /* free the error message buffer */
+    if (lpMsgBuf) {
+        LocalFree (lpMsgBuf);
+    }
 
-  /* get the error code */
-  dw = GetLastError();
-
-  /* get the corresponding error message */
-  FormatMessage (
-		FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		dw,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR) &lpMsgBuf,
-		0, NULL);
-
-  return (char *) lpMsgBuf;
+    /* get the error code */
+    dw = GetLastError();
+    /* get the corresponding error message */
+    FormatMessage (
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR) &lpMsgBuf,
+        0, NULL);
+    return (char *) lpMsgBuf;
 }
 
 void *
-dlsym (void *handle, const char *symbol)
-{
-  return (void *) GetProcAddress((HMODULE) handle, symbol);
+dlsym (void *handle, const char *symbol) {
+    return (void *) GetProcAddress((HMODULE) handle, symbol);
 }
 
 

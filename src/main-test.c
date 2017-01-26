@@ -38,13 +38,11 @@
 #include "pcb-printf.h"
 
 int
-main (int argc, char *argv[])
-{
-  initialize_units ();
-  pcb_printf_register_tests ();
-
-  g_test_init (&argc, &argv, NULL);
-  g_test_run ();
-  return 0;
+main (int argc, char *argv[]) {
+    initialize_units ();
+    pcb_printf_register_tests ();
+    g_test_init (&argc, &argv, NULL);
+    g_test_run ();
+    return 0;
 }
 

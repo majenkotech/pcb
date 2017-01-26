@@ -82,32 +82,32 @@ static void *RemoveLinePoint (LayerType *, LineType *, PointType *);
  * some local types
  */
 static ObjectFunctionType RemoveFunctions = {
-  RemoveLine,
-  RemoveText,
-  RemovePolygon,
-  RemoveVia,
-  RemoveElement,
-  NULL,
-  NULL,
-  NULL,
-  RemoveLinePoint,
-  RemovePolygonPoint,
-  RemoveArc,
-  RemoveRat
+    RemoveLine,
+    RemoveText,
+    RemovePolygon,
+    RemoveVia,
+    RemoveElement,
+    NULL,
+    NULL,
+    NULL,
+    RemoveLinePoint,
+    RemovePolygonPoint,
+    RemoveArc,
+    RemoveRat
 };
 static ObjectFunctionType DestroyFunctions = {
-  DestroyLine,
-  DestroyText,
-  DestroyPolygon,
-  DestroyVia,
-  DestroyElement,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  DestroyPolygonPoint,
-  DestroyArc,
-  DestroyRat
+    DestroyLine,
+    DestroyText,
+    DestroyPolygon,
+    DestroyVia,
+    DestroyElement,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    DestroyPolygonPoint,
+    DestroyArc,
+    DestroyRat
 };
 static DataType *DestroyTarget;
 static bool Bulk = false;
@@ -116,78 +116,61 @@ static bool Bulk = false;
  * \brief Remove PCB.
  */
 void
-RemovePCB (PCBType *Ptr)
-{
-  ClearUndoList (true);
-  FreePCBMemory (Ptr);
-  free (Ptr);
+RemovePCB (PCBType *Ptr) {
+    ClearUndoList (true);
+    FreePCBMemory (Ptr);
+    free (Ptr);
 }
 
 /*!
  * \brief Destroys a via.
  */
 static void *
-DestroyVia (PinType *Via)
-{
-  r_delete_entry (DestroyTarget->via_tree, (BoxType *) Via);
-  free (Via->Name);
-
-  DestroyTarget->Via = g_list_remove (DestroyTarget->Via, Via);
-  DestroyTarget->ViaN --;
-
-  g_slice_free (PinType, Via);
-
-  return NULL;
+DestroyVia (PinType *Via) {
+    r_delete_entry (DestroyTarget->via_tree, (BoxType *) Via);
+    free (Via->Name);
+    DestroyTarget->Via = g_list_remove (DestroyTarget->Via, Via);
+    DestroyTarget->ViaN --;
+    g_slice_free (PinType, Via);
+    return NULL;
 }
 
 /*!
  * \brief Destroys a line from a layer.
  */
 static void *
-DestroyLine (LayerType *Layer, LineType *Line)
-{
-  r_delete_entry (Layer->line_tree, (BoxType *) Line);
-  free (Line->Number);
-
-  Layer->Line = g_list_remove (Layer->Line, Line);
-  Layer->LineN --;
-
-  g_slice_free (LineType, Line);
-
-  return NULL;
+DestroyLine (LayerType *Layer, LineType *Line) {
+    r_delete_entry (Layer->line_tree, (BoxType *) Line);
+    free (Line->Number);
+    Layer->Line = g_list_remove (Layer->Line, Line);
+    Layer->LineN --;
+    g_slice_free (LineType, Line);
+    return NULL;
 }
 
 /*!
  * \brief Destroys an arc from a layer.
  */
 static void *
-DestroyArc (LayerType *Layer, ArcType *Arc)
-{
-  r_delete_entry (Layer->arc_tree, (BoxType *) Arc);
-
-  Layer->Arc = g_list_remove (Layer->Arc, Arc);
-  Layer->ArcN --;
-
-  g_slice_free (ArcType, Arc);
-
-  return NULL;
+DestroyArc (LayerType *Layer, ArcType *Arc) {
+    r_delete_entry (Layer->arc_tree, (BoxType *) Arc);
+    Layer->Arc = g_list_remove (Layer->Arc, Arc);
+    Layer->ArcN --;
+    g_slice_free (ArcType, Arc);
+    return NULL;
 }
 
 /*!
  * \brief Destroys a polygon from a layer.
  */
 static void *
-DestroyPolygon (LayerType *Layer, PolygonType *Polygon)
-{
-  r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
-  FreePolygonMemory (Polygon);
-
-  Layer->Polygon = g_list_remove (Layer->Polygon, Polygon);
-  Layer->PolygonN --;
-
-  g_slice_free (PolygonType, Polygon);
-
-  return NULL;
+DestroyPolygon (LayerType *Layer, PolygonType *Polygon) {
+    r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
+    FreePolygonMemory (Polygon);
+    Layer->Polygon = g_list_remove (Layer->Polygon, Polygon);
+    Layer->PolygonN --;
+    g_slice_free (PolygonType, Polygon);
+    return NULL;
 }
 
 /*!
@@ -195,113 +178,108 @@ DestroyPolygon (LayerType *Layer, PolygonType *Polygon)
  */
 static void *
 DestroyPolygonPoint (LayerType *Layer,
-		     PolygonType *Polygon, PointType *Point)
-{
-  Cardinal point_idx;
-  Cardinal i;
-  Cardinal contour;
-  Cardinal contour_start, contour_end, contour_points;
+                     PolygonType *Polygon, PointType *Point) {
+    Cardinal point_idx;
+    Cardinal i;
+    Cardinal contour;
+    Cardinal contour_start, contour_end, contour_points;
+    point_idx = polygon_point_idx (Polygon, Point);
+    contour = polygon_point_contour (Polygon, point_idx);
+    contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
+    contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
+                  Polygon->HoleIndex[contour];
+    contour_points = contour_end - contour_start;
 
-  point_idx = polygon_point_idx (Polygon, Point);
-  contour = polygon_point_contour (Polygon, point_idx);
-  contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
-  contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
-                                                   Polygon->HoleIndex[contour];
-  contour_points = contour_end - contour_start;
+    if (contour_points <= 3) {
+        return RemovePolygonContour (Layer, Polygon, contour);
+    }
 
-  if (contour_points <= 3)
-    return RemovePolygonContour (Layer, Polygon, contour);
+    r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
 
-  r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
+    /* remove point from list, keep point order */
+    for (i = point_idx; i < Polygon->PointN - 1; i++) {
+        Polygon->Points[i] = Polygon->Points[i + 1];
+    }
 
-  /* remove point from list, keep point order */
-  for (i = point_idx; i < Polygon->PointN - 1; i++)
-    Polygon->Points[i] = Polygon->Points[i + 1];
-  Polygon->PointN--;
+    Polygon->PointN--;
 
-  /* Shift down indices of any holes */
-  for (i = 0; i < Polygon->HoleIndexN; i++)
-    if (Polygon->HoleIndex[i] > point_idx)
-      Polygon->HoleIndex[i]--;
+    /* Shift down indices of any holes */
+    for (i = 0; i < Polygon->HoleIndexN; i++)
+        if (Polygon->HoleIndex[i] > point_idx) {
+            Polygon->HoleIndex[i]--;
+        }
 
-  SetPolygonBoundingBox (Polygon);
-  r_insert_entry (Layer->polygon_tree, (BoxType *) Polygon, 0);
-  InitClip (PCB->Data, Layer, Polygon);
-  return (Polygon);
+    SetPolygonBoundingBox (Polygon);
+    r_insert_entry (Layer->polygon_tree, (BoxType *) Polygon, 0);
+    InitClip (PCB->Data, Layer, Polygon);
+    return (Polygon);
 }
 
 /*!
  * \brief Destroys a text from a layer.
  */
 static void *
-DestroyText (LayerType *Layer, TextType *Text)
-{
-  free (Text->TextString);
-  r_delete_entry (Layer->text_tree, (BoxType *) Text);
-
-  Layer->Text = g_list_remove (Layer->Text, Text);
-  Layer->TextN --;
-
-  g_slice_free (TextType, Text);
-
-  return NULL;
+DestroyText (LayerType *Layer, TextType *Text) {
+    free (Text->TextString);
+    r_delete_entry (Layer->text_tree, (BoxType *) Text);
+    Layer->Text = g_list_remove (Layer->Text, Text);
+    Layer->TextN --;
+    g_slice_free (TextType, Text);
+    return NULL;
 }
 
 /* ---------------------------------------------------------------------------
  * destroys a element
  */
 static void *
-DestroyElement (ElementType *Element)
-{
-  if (DestroyTarget->element_tree)
-    r_delete_entry (DestroyTarget->element_tree, (BoxType *) Element);
-  if (DestroyTarget->pin_tree)
-    {
-      PIN_LOOP (Element);
-      {
-	r_delete_entry (DestroyTarget->pin_tree, (BoxType *) pin);
-      }
-      END_LOOP;
+DestroyElement (ElementType *Element) {
+    if (DestroyTarget->element_tree) {
+        r_delete_entry (DestroyTarget->element_tree, (BoxType *) Element);
     }
-  if (DestroyTarget->pad_tree)
-    {
-      PAD_LOOP (Element);
-      {
-	r_delete_entry (DestroyTarget->pad_tree, (BoxType *) pad);
-      }
-      END_LOOP;
+
+    if (DestroyTarget->pin_tree) {
+        PIN_LOOP (Element);
+        {
+            r_delete_entry (DestroyTarget->pin_tree, (BoxType *) pin);
+        }
+        END_LOOP;
     }
-  ELEMENTTEXT_LOOP (Element);
-  {
-    if (DestroyTarget->name_tree[n])
-      r_delete_entry (DestroyTarget->name_tree[n], (BoxType *) text);
-  }
-  END_LOOP;
-  FreeElementMemory (Element);
 
-  DestroyTarget->Element = g_list_remove (DestroyTarget->Element, Element);
-  DestroyTarget->ElementN --;
+    if (DestroyTarget->pad_tree) {
+        PAD_LOOP (Element);
+        {
+            r_delete_entry (DestroyTarget->pad_tree, (BoxType *) pad);
+        }
+        END_LOOP;
+    }
 
-  g_slice_free (ElementType, Element);
-
-  return NULL;
+    ELEMENTTEXT_LOOP (Element);
+    {
+        if (DestroyTarget->name_tree[n]) {
+            r_delete_entry (DestroyTarget->name_tree[n], (BoxType *) text);
+        }
+    }
+    END_LOOP;
+    FreeElementMemory (Element);
+    DestroyTarget->Element = g_list_remove (DestroyTarget->Element, Element);
+    DestroyTarget->ElementN --;
+    g_slice_free (ElementType, Element);
+    return NULL;
 }
 
 /*!
  * \brief Destroys a rat.
  */
 static void *
-DestroyRat (RatType *Rat)
-{
-  if (DestroyTarget->rat_tree)
-    r_delete_entry (DestroyTarget->rat_tree, &Rat->BoundingBox);
+DestroyRat (RatType *Rat) {
+    if (DestroyTarget->rat_tree) {
+        r_delete_entry (DestroyTarget->rat_tree, &Rat->BoundingBox);
+    }
 
-  DestroyTarget->Rat = g_list_remove (DestroyTarget->Rat, Rat);
-  DestroyTarget->RatN --;
-
-  g_slice_free (RatType, Rat);
-
-  return NULL;
+    DestroyTarget->Rat = g_list_remove (DestroyTarget->Rat, Rat);
+    DestroyTarget->RatN --;
+    g_slice_free (RatType, Rat);
+    return NULL;
 }
 
 
@@ -309,65 +287,65 @@ DestroyRat (RatType *Rat)
  * \brief Removes a via.
  */
 static void *
-RemoveVia (PinType *Via)
-{
-  /* erase from screen and memory */
-  if (PCB->ViaOn)
-    {
-      EraseVia (Via);
-      if (!Bulk)
-	Draw ();
+RemoveVia (PinType *Via) {
+    /* erase from screen and memory */
+    if (PCB->ViaOn) {
+        EraseVia (Via);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (VIA_TYPE, Via, Via, Via);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (VIA_TYPE, Via, Via, Via);
+    return NULL;
 }
 
 /*!
  * \brief Removes a rat.
  */
 static void *
-RemoveRat (RatType *Rat)
-{
-  /* erase from screen and memory */
-  if (PCB->RatOn)
-    {
-      EraseRat (Rat);
-      if (!Bulk)
-	Draw ();
+RemoveRat (RatType *Rat) {
+    /* erase from screen and memory */
+    if (PCB->RatOn) {
+        EraseRat (Rat);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (RATLINE_TYPE, Rat, Rat, Rat);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (RATLINE_TYPE, Rat, Rat, Rat);
+    return NULL;
 }
 
-struct rlp_info
-{
-  jmp_buf env;
-  LineType *line;
-  PointType *point;
+struct rlp_info {
+    jmp_buf env;
+    LineType *line;
+    PointType *point;
 };
 static int
-remove_point (const BoxType * b, void *cl)
-{
-  LineType *line = (LineType *) b;
-  struct rlp_info *info = (struct rlp_info *) cl;
-  if (line == info->line)
+remove_point (const BoxType * b, void *cl) {
+    LineType *line = (LineType *) b;
+    struct rlp_info *info = (struct rlp_info *) cl;
+
+    if (line == info->line) {
+        return 0;
+    }
+
+    if ((line->Point1.X == info->point->X)
+            && (line->Point1.Y == info->point->Y)) {
+        info->line = line;
+        info->point = &line->Point1;
+        longjmp (info->env, 1);
+    } else if ((line->Point2.X == info->point->X)
+               && (line->Point2.Y == info->point->Y)) {
+        info->line = line;
+        info->point = &line->Point2;
+        longjmp (info->env, 1);
+    }
+
     return 0;
-  if ((line->Point1.X == info->point->X)
-      && (line->Point1.Y == info->point->Y))
-    {
-      info->line = line;
-      info->point = &line->Point1;
-      longjmp (info->env, 1);
-    }
-  else
-    if ((line->Point2.X == info->point->X)
-	&& (line->Point2.Y == info->point->Y))
-    {
-      info->line = line;
-      info->point = &line->Point2;
-      longjmp (info->env, 1);
-    }
-  return 0;
 }
 
 /*!
@@ -375,93 +353,100 @@ remove_point (const BoxType * b, void *cl)
  * end.
  */
 static void *
-RemoveLinePoint (LayerType *Layer, LineType *Line, PointType *Point)
-{
-  PointType other;
-  struct rlp_info info;
-  if (&Line->Point1 == Point)
-    other = Line->Point2;
-  else
-    other = Line->Point1;
-  info.line = Line;
-  info.point = Point;
-  if (setjmp (info.env) == 0)
-    {
-      r_search (Layer->line_tree, (const BoxType *) Point, NULL, remove_point,
-		&info);
-      return RemoveLine (Layer, Line);
+RemoveLinePoint (LayerType *Layer, LineType *Line, PointType *Point) {
+    PointType other;
+    struct rlp_info info;
+
+    if (&Line->Point1 == Point) {
+        other = Line->Point2;
+    } else {
+        other = Line->Point1;
     }
-  MoveObject (LINEPOINT_TYPE, Layer, info.line, info.point,
-	      other.X - Point->X, other.Y - Point->Y);
-  return (RemoveLine (Layer, Line));
+
+    info.line = Line;
+    info.point = Point;
+
+    if (setjmp (info.env) == 0) {
+        r_search (Layer->line_tree, (const BoxType *) Point, NULL, remove_point,
+                  &info);
+        return RemoveLine (Layer, Line);
+    }
+
+    MoveObject (LINEPOINT_TYPE, Layer, info.line, info.point,
+                other.X - Point->X, other.Y - Point->Y);
+    return (RemoveLine (Layer, Line));
 }
 
 /*!
  * \brief Removes a line from a layer.
  */
 void *
-RemoveLine (LayerType *Layer, LineType *Line)
-{
-  /* erase from screen */
-  if (Layer->On)
-    {
-      EraseLine (Line);
-      if (!Bulk)
-	Draw ();
+RemoveLine (LayerType *Layer, LineType *Line) {
+    /* erase from screen */
+    if (Layer->On) {
+        EraseLine (Line);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (LINE_TYPE, Layer, Line, Line);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (LINE_TYPE, Layer, Line, Line);
+    return NULL;
 }
 
 /*!
  * \brief Removes an arc from a layer.
  */
 void *
-RemoveArc (LayerType *Layer, ArcType *Arc)
-{
-  /* erase from screen */
-  if (Layer->On)
-    {
-      EraseArc (Arc);
-      if (!Bulk)
-	Draw ();
+RemoveArc (LayerType *Layer, ArcType *Arc) {
+    /* erase from screen */
+    if (Layer->On) {
+        EraseArc (Arc);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (ARC_TYPE, Layer, Arc, Arc);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (ARC_TYPE, Layer, Arc, Arc);
+    return NULL;
 }
 
 /*!
  * \brief Removes a text from a layer.
  */
 void *
-RemoveText (LayerType *Layer, TextType *Text)
-{
-  /* erase from screen */
-  if (Layer->On)
-    {
-      EraseText (Layer, Text);
-      if (!Bulk)
-	Draw ();
+RemoveText (LayerType *Layer, TextType *Text) {
+    /* erase from screen */
+    if (Layer->On) {
+        EraseText (Layer, Text);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (TEXT_TYPE, Layer, Text, Text);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (TEXT_TYPE, Layer, Text, Text);
+    return NULL;
 }
 
 /*!
  * \brief Removes a polygon from a layer.
  */
 void *
-RemovePolygon (LayerType *Layer, PolygonType *Polygon)
-{
-  /* erase from screen */
-  if (Layer->On)
-    {
-      ErasePolygon (Polygon);
-      if (!Bulk)
-	Draw ();
+RemovePolygon (LayerType *Layer, PolygonType *Polygon) {
+    /* erase from screen */
+    if (Layer->On) {
+        ErasePolygon (Polygon);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (POLYGON_TYPE, Layer, Polygon, Polygon);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (POLYGON_TYPE, Layer, Polygon, Polygon);
+    return NULL;
 }
 
 /*!
@@ -472,48 +457,54 @@ RemovePolygon (LayerType *Layer, PolygonType *Polygon)
 static void *
 RemovePolygonContour (LayerType *Layer,
                       PolygonType *Polygon,
-                      Cardinal contour)
-{
-  Cardinal contour_start, contour_end, contour_points;
-  Cardinal i;
+                      Cardinal contour) {
+    Cardinal contour_start, contour_end, contour_points;
+    Cardinal i;
 
-  if (contour == 0)
-    return RemovePolygon (Layer, Polygon);
-
-  if (Layer->On)
-    {
-      ErasePolygon (Polygon);
-      if (!Bulk)
-        Draw ();
+    if (contour == 0) {
+        return RemovePolygon (Layer, Polygon);
     }
 
-  /* Copy the polygon to the undo list */
-  AddObjectToRemoveContourUndoList (POLYGON_TYPE, Layer, Polygon);
+    if (Layer->On) {
+        ErasePolygon (Polygon);
 
-  contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
-  contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
-                                                   Polygon->HoleIndex[contour];
-  contour_points = contour_end - contour_start;
-
-  /* remove points from list, keep point order */
-  for (i = contour_start; i < Polygon->PointN - contour_points; i++)
-    Polygon->Points[i] = Polygon->Points[i + contour_points];
-  Polygon->PointN -= contour_points;
-
-  /* remove hole from list and shift down remaining indices */
-  for (i = contour; i < Polygon->HoleIndexN; i++)
-    Polygon->HoleIndex[i - 1] = Polygon->HoleIndex[i] - contour_points;
-  Polygon->HoleIndexN--;
-
-  InitClip (PCB->Data, Layer, Polygon);
-  /* redraw polygon if necessary */
-  if (Layer->On)
-    {
-      DrawPolygon (Layer, Polygon);
-      if (!Bulk)
-        Draw ();
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  return NULL;
+
+    /* Copy the polygon to the undo list */
+    AddObjectToRemoveContourUndoList (POLYGON_TYPE, Layer, Polygon);
+    contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
+    contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
+                  Polygon->HoleIndex[contour];
+    contour_points = contour_end - contour_start;
+
+    /* remove points from list, keep point order */
+    for (i = contour_start; i < Polygon->PointN - contour_points; i++) {
+        Polygon->Points[i] = Polygon->Points[i + contour_points];
+    }
+
+    Polygon->PointN -= contour_points;
+
+    /* remove hole from list and shift down remaining indices */
+    for (i = contour; i < Polygon->HoleIndexN; i++) {
+        Polygon->HoleIndex[i - 1] = Polygon->HoleIndex[i] - contour_points;
+    }
+
+    Polygon->HoleIndexN--;
+    InitClip (PCB->Data, Layer, Polygon);
+
+    /* redraw polygon if necessary */
+    if (Layer->On) {
+        DrawPolygon (Layer, Polygon);
+
+        if (!Bulk) {
+            Draw ();
+        }
+    }
+
+    return NULL;
 }
 
 /*!
@@ -521,71 +512,77 @@ RemovePolygonContour (LayerType *Layer,
  */
 static void *
 RemovePolygonPoint (LayerType *Layer,
-		    PolygonType *Polygon, PointType *Point)
-{
-  Cardinal point_idx;
-  Cardinal i;
-  Cardinal contour;
-  Cardinal contour_start, contour_end, contour_points;
+                    PolygonType *Polygon, PointType *Point) {
+    Cardinal point_idx;
+    Cardinal i;
+    Cardinal contour;
+    Cardinal contour_start, contour_end, contour_points;
+    point_idx = polygon_point_idx (Polygon, Point);
+    contour = polygon_point_contour (Polygon, point_idx);
+    contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
+    contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
+                  Polygon->HoleIndex[contour];
+    contour_points = contour_end - contour_start;
 
-  point_idx = polygon_point_idx (Polygon, Point);
-  contour = polygon_point_contour (Polygon, point_idx);
-  contour_start = (contour == 0) ? 0 : Polygon->HoleIndex[contour - 1];
-  contour_end = (contour == Polygon->HoleIndexN) ? Polygon->PointN :
-                                                   Polygon->HoleIndex[contour];
-  contour_points = contour_end - contour_start;
-
-  if (contour_points <= 3)
-    return RemovePolygonContour (Layer, Polygon, contour);
-
-  if (Layer->On)
-    ErasePolygon (Polygon);
-
-  /* insert the polygon-point into the undo list */
-  AddObjectToRemovePointUndoList (POLYGONPOINT_TYPE, Layer, Polygon, point_idx);
-  r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
-
-  /* remove point from list, keep point order */
-  for (i = point_idx; i < Polygon->PointN - 1; i++)
-    Polygon->Points[i] = Polygon->Points[i + 1];
-  Polygon->PointN--;
-
-  /* Shift down indices of any holes */
-  for (i = 0; i < Polygon->HoleIndexN; i++)
-    if (Polygon->HoleIndex[i] > point_idx)
-      Polygon->HoleIndex[i]--;
-
-  SetPolygonBoundingBox (Polygon);
-  r_insert_entry (Layer->polygon_tree, (BoxType *) Polygon, 0);
-  RemoveExcessPolygonPoints (Layer, Polygon);
-  InitClip (PCB->Data, Layer, Polygon);
-
-  /* redraw polygon if necessary */
-  if (Layer->On)
-    {
-      DrawPolygon (Layer, Polygon);
-      if (!Bulk)
-	Draw ();
+    if (contour_points <= 3) {
+        return RemovePolygonContour (Layer, Polygon, contour);
     }
-  return NULL;
+
+    if (Layer->On) {
+        ErasePolygon (Polygon);
+    }
+
+    /* insert the polygon-point into the undo list */
+    AddObjectToRemovePointUndoList (POLYGONPOINT_TYPE, Layer, Polygon, point_idx);
+    r_delete_entry (Layer->polygon_tree, (BoxType *) Polygon);
+
+    /* remove point from list, keep point order */
+    for (i = point_idx; i < Polygon->PointN - 1; i++) {
+        Polygon->Points[i] = Polygon->Points[i + 1];
+    }
+
+    Polygon->PointN--;
+
+    /* Shift down indices of any holes */
+    for (i = 0; i < Polygon->HoleIndexN; i++)
+        if (Polygon->HoleIndex[i] > point_idx) {
+            Polygon->HoleIndex[i]--;
+        }
+
+    SetPolygonBoundingBox (Polygon);
+    r_insert_entry (Layer->polygon_tree, (BoxType *) Polygon, 0);
+    RemoveExcessPolygonPoints (Layer, Polygon);
+    InitClip (PCB->Data, Layer, Polygon);
+
+    /* redraw polygon if necessary */
+    if (Layer->On) {
+        DrawPolygon (Layer, Polygon);
+
+        if (!Bulk) {
+            Draw ();
+        }
+    }
+
+    return NULL;
 }
 
 /*!
  * \brief Removes an element.
  */
 void *
-RemoveElement (ElementType *Element)
-{
-  /* erase from screen */
-  if ((PCB->ElementOn || PCB->PinOn) &&
-      (FRONT (Element) || PCB->InvisibleObjectsOn))
-    {
-      EraseElement (Element);
-      if (!Bulk)
-	Draw ();
+RemoveElement (ElementType *Element) {
+    /* erase from screen */
+    if ((PCB->ElementOn || PCB->PinOn) &&
+            (FRONT (Element) || PCB->InvisibleObjectsOn)) {
+        EraseElement (Element);
+
+        if (!Bulk) {
+            Draw ();
+        }
     }
-  MoveObjectToRemoveUndoList (ELEMENT_TYPE, Element, Element, Element);
-  return NULL;
+
+    MoveObjectToRemoveUndoList (ELEMENT_TYPE, Element, Element, Element);
+    return NULL;
 }
 
 /*!
@@ -594,18 +591,18 @@ RemoveElement (ElementType *Element)
  * \return true if any objects have been removed.
  */
 bool
-RemoveSelected (void)
-{
-  Bulk = true;
-  if (SelectedOperation (&RemoveFunctions, false, ALL_TYPES))
-    {
-      IncrementUndoSerialNumber ();
-      Draw ();
-      Bulk = false;
-      return (true);
+RemoveSelected (void) {
+    Bulk = true;
+
+    if (SelectedOperation (&RemoveFunctions, false, ALL_TYPES)) {
+        IncrementUndoSerialNumber ();
+        Draw ();
+        Bulk = false;
+        return (true);
     }
-  Bulk = false;
-  return (false);
+
+    Bulk = false;
+    return (false);
 }
 
 /*!
@@ -613,10 +610,9 @@ RemoveSelected (void)
  * allocated memory is passed to the 'remove undo' list.
  */
 void *
-RemoveObject (int Type, void *Ptr1, void *Ptr2, void *Ptr3)
-{
-  void *ptr = ObjectOperation (&RemoveFunctions, Type, Ptr1, Ptr2, Ptr3);
-  return (ptr);
+RemoveObject (int Type, void *Ptr1, void *Ptr2, void *Ptr3) {
+    void *ptr = ObjectOperation (&RemoveFunctions, Type, Ptr1, Ptr2, Ptr3);
+    return (ptr);
 }
 
 /*!
@@ -625,26 +621,25 @@ RemoveObject (int Type, void *Ptr1, void *Ptr2, void *Ptr3)
  * Can delete all rat lines, or only selected one.
  */
 bool
-DeleteRats (bool selected)
-{
-  bool changed = false;
-  Bulk = true;
-  RAT_LOOP (PCB->Data);
-  {
-    if ((!selected) || TEST_FLAG (SELECTEDFLAG, line))
-      {
-	changed = true;
-	RemoveRat (line);
-      }
-  }
-  END_LOOP;
-  Bulk = false;
-  if (changed)
+DeleteRats (bool selected) {
+    bool changed = false;
+    Bulk = true;
+    RAT_LOOP (PCB->Data);
     {
-      Draw ();
-      IncrementUndoSerialNumber ();
+        if ((!selected) || TEST_FLAG (SELECTEDFLAG, line)) {
+            changed = true;
+            RemoveRat (line);
+        }
     }
-  return (changed);
+    END_LOOP;
+    Bulk = false;
+
+    if (changed) {
+        Draw ();
+        IncrementUndoSerialNumber ();
+    }
+
+    return (changed);
 }
 
 /*!
@@ -654,8 +649,7 @@ DeleteRats (bool selected)
  */
 void *
 DestroyObject (DataType *Target, int Type, void *Ptr1,
-	       void *Ptr2, void *Ptr3)
-{
-  DestroyTarget = Target;
-  return (ObjectOperation (&DestroyFunctions, Type, Ptr1, Ptr2, Ptr3));
+               void *Ptr2, void *Ptr3) {
+    DestroyTarget = Target;
+    return (ObjectOperation (&DestroyFunctions, Type, Ptr1, Ptr2, Ptr3));
 }

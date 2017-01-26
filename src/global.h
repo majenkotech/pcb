@@ -421,10 +421,12 @@ typedef struct
   Cardinal PadN; /*!< Number of pads. */
   Cardinal LineN; /*!< Number of lines. */
   Cardinal ArcN; /*!< Number of arcs. */
+  Cardinal PolygonN; /*!< Number of polygons. */
   GList *Pin;
   GList *Pad;
   GList *Line;
   GList *Arc;
+  GList *Polygon;
   BoxType VBox;
   AttributeListType Attributes;
 } ElementType;

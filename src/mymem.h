@@ -78,6 +78,7 @@ ArcType * GetArcMemory (LayerType *);
 RatType * GetRatMemory (DataType *);
 TextType * GetTextMemory (LayerType *);
 PolygonType * GetPolygonMemory (LayerType *);
+PolygonType * GetPolygonMemoryInElement (ElementType *);
 PointType * GetPointMemoryInPolygon (PolygonType *);
 Cardinal *GetHoleIndexMemoryInPolygon (PolygonType *);
 ElementType * GetElementMemory (DataType *);

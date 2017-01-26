@@ -59,56 +59,53 @@ Example:
 
 %end-doc */
 static int
-renumber_block (int argc, char **argv, Coord x, Coord y)
-{
-  char num_buf[15];
-  int old_base;
-  int new_base;
+renumber_block (int argc, char **argv, Coord x, Coord y) {
+    char num_buf[15];
+    int old_base;
+    int new_base;
 
-  if (argc < 2)
-  {
-    Message("Usage: RenumberBlock oldnum newnum");
-    return 1;
-  }
+    if (argc < 2) {
+        Message("Usage: RenumberBlock oldnum newnum");
+        return 1;
+    }
 
-  old_base = atoi (argv[0]);
-  new_base = atoi (argv[1]);
+    old_base = atoi (argv[0]);
+    new_base = atoi (argv[1]);
+    SET_FLAG (NAMEONPCBFLAG, PCB);
+    ELEMENT_LOOP (PCB->Data);
+    {
+        char *refdes_split;
+        char *cp;
+        char *old_ref;
+        char *new_ref;
+        int num;
 
-  SET_FLAG (NAMEONPCBFLAG, PCB);
+        if (!TEST_FLAG (SELECTEDFLAG, element)
+                || EMPTY_STRING_P(element->Name[1].TextString)) {
+            continue;
+        }
 
-  ELEMENT_LOOP (PCB->Data);
-  {
-    char *refdes_split;
-    char *cp;
-    char *old_ref;
-    char *new_ref;
-    int num;
+        old_ref = element->Name[1].TextString;
 
-    if (!TEST_FLAG (SELECTEDFLAG, element)
-        || EMPTY_STRING_P(element->Name[1].TextString))
-      continue;
+        for (refdes_split = cp = old_ref; *cp; cp++)
+            if (!isdigit (*cp)) {
+                refdes_split = cp + 1;
+            }
 
-    old_ref = element->Name[1].TextString;
-    for (refdes_split = cp = old_ref; *cp; cp++)
-      if (!isdigit (*cp))
-        refdes_split = cp+1;
-
-    num = atoi (refdes_split);
-    num += (new_base - old_base);
-    sprintf(num_buf, "%d" ,num);
-    new_ref = (char *) malloc (refdes_split - old_ref + strlen (num_buf) + 1);
-    memcpy (new_ref, old_ref, refdes_split - old_ref);
-    strcpy (new_ref + (refdes_split - old_ref), num_buf);
-
-    AddObjectToChangeNameUndoList (ELEMENT_TYPE, NULL, NULL,
-                                   element,
-                                   NAMEONPCB_NAME (element));
-
-    ChangeObjectName (ELEMENT_TYPE, element, NULL, NULL, new_ref);
-  }
-  END_LOOP;
-  IncrementUndoSerialNumber ();
-  return 0;
+        num = atoi (refdes_split);
+        num += (new_base - old_base);
+        sprintf(num_buf, "%d" , num);
+        new_ref = (char *) malloc (refdes_split - old_ref + strlen (num_buf) + 1);
+        memcpy (new_ref, old_ref, refdes_split - old_ref);
+        strcpy (new_ref + (refdes_split - old_ref), num_buf);
+        AddObjectToChangeNameUndoList (ELEMENT_TYPE, NULL, NULL,
+                                       element,
+                                       NAMEONPCB_NAME (element));
+        ChangeObjectName (ELEMENT_TYPE, element, NULL, NULL, new_ref);
+    }
+    END_LOOP;
+    IncrementUndoSerialNumber ();
+    return 0;
 }
 
 
@@ -130,62 +127,58 @@ Example:
 
 %end-doc */
 static int
-renumber_buffer (int argc, char **argv, Coord x, Coord y)
-{
-  char num_buf[15];
-  int old_base;
-  int new_base;
+renumber_buffer (int argc, char **argv, Coord x, Coord y) {
+    char num_buf[15];
+    int old_base;
+    int new_base;
 
-  if (argc < 2)
-  {
-    Message("Usage: RenumberBuffer oldnum newnum");
-    return 1;
-  }
+    if (argc < 2) {
+        Message("Usage: RenumberBuffer oldnum newnum");
+        return 1;
+    }
 
-  old_base = atoi (argv[0]);
-  new_base = atoi (argv[1]);
+    old_base = atoi (argv[0]);
+    new_base = atoi (argv[1]);
+    SET_FLAG (NAMEONPCBFLAG, PCB);
+    ELEMENT_LOOP (PASTEBUFFER->Data);
+    {
+        char *refdes_split;
+        char *cp;
+        char *old_ref;
+        char *new_ref;
+        int num;
 
-  SET_FLAG (NAMEONPCBFLAG, PCB);
+        if (EMPTY_STRING_P(element->Name[1].TextString)) {
+            continue;
+        }
 
-  ELEMENT_LOOP (PASTEBUFFER->Data);
-  {
-    char *refdes_split;
-    char *cp;
-    char *old_ref;
-    char *new_ref;
-    int num;
+        old_ref = element->Name[1].TextString;
 
-    if (EMPTY_STRING_P(element->Name[1].TextString))
-      continue;
+        for (refdes_split = cp = old_ref; *cp; cp++)
+            if (!isdigit(*cp)) {
+                refdes_split = cp + 1;
+            }
 
-    old_ref = element->Name[1].TextString;
-    for (refdes_split=cp=old_ref; *cp; cp++)
-      if (!isdigit(*cp))
-        refdes_split = cp+1;
-
-    num = atoi (refdes_split);
-    num += (new_base - old_base);
-    sprintf (num_buf, "%d" ,num);
-    new_ref = (char *) malloc (refdes_split - old_ref + strlen (num_buf) + 1);
-    memcpy (new_ref, old_ref, refdes_split - old_ref);
-    strcpy (new_ref + (refdes_split - old_ref), num_buf);
-
-    ChangeObjectName (ELEMENT_TYPE, element, NULL, NULL, new_ref);
-  }
-  END_LOOP;
-  return 0;
+        num = atoi (refdes_split);
+        num += (new_base - old_base);
+        sprintf (num_buf, "%d" , num);
+        new_ref = (char *) malloc (refdes_split - old_ref + strlen (num_buf) + 1);
+        memcpy (new_ref, old_ref, refdes_split - old_ref);
+        strcpy (new_ref + (refdes_split - old_ref), num_buf);
+        ChangeObjectName (ELEMENT_TYPE, element, NULL, NULL, new_ref);
+    }
+    END_LOOP;
+    return 0;
 }
 
-static HID_Action renumber_block_action_list[] =
-{
-  {"RenumberBlock", NULL, renumber_block, NULL, NULL},
-  {"RenumberBuffer", NULL, renumber_buffer, NULL, NULL}
+static HID_Action renumber_block_action_list[] = {
+    {"RenumberBlock", NULL, renumber_block, NULL, NULL},
+    {"RenumberBuffer", NULL, renumber_buffer, NULL, NULL}
 };
 
 REGISTER_ACTIONS (renumber_block_action_list)
 
 void
-pcb_plugin_init()
-{
-  register_renumber_block_action_list();
+pcb_plugin_init() {
+    register_renumber_block_action_list();
 }

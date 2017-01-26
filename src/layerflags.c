@@ -58,55 +58,55 @@
  * They're used for parsing/writing layer types from/to the layout file.
  */
 static char *layertype_name[LT_NUM_LAYERTYPES + 1] = {
-  "copper",       /* LT_COPPER */
-  "silk",         /* LT_SILK */
-  "mask",         /* LT_MASK */
-  "paste",        /* LT_PASTE */
-  "outline",      /* LT_OUTLINE */
-  "route",        /* LT_ROUTE */
-  "keepout",      /* LT_KEEPOUT */
-  "fab",          /* LT_FAB */
-  "assy",         /* LT_ASSY */
-  "notes",        /* LT_NOTES */
-  "no_type"       /* LT_NUM_LAYERTYPES */
+    "copper",       /* LT_COPPER */
+    "silk",         /* LT_SILK */
+    "mask",         /* LT_MASK */
+    "paste",        /* LT_PASTE */
+    "outline",      /* LT_OUTLINE */
+    "route",        /* LT_ROUTE */
+    "keepout",      /* LT_KEEPOUT */
+    "fab",          /* LT_FAB */
+    "assy",         /* LT_ASSY */
+    "notes",        /* LT_NOTES */
+    "no_type"       /* LT_NUM_LAYERTYPES */
 };
 
 
 LayertypeType
 string_to_layertype (const char *flagstring,
-                     int (*error) (const char *msg))
-{
-  LayertypeType type = 0;
+                     int (*error) (const char *msg)) {
+    LayertypeType type = 0;
 
-  if (*flagstring == '"')
-    flagstring++;
-
-  while (flagstring > (char *)1 && strlen (flagstring) > 1)
-    {
-      for (type = 0; type < LT_NUM_LAYERTYPES; type++)
-        {
-          if (strcmp (flagstring, layertype_name[type]) == 0)
-            break;
-        }
-
-      if (type == LT_NUM_LAYERTYPES)
-        flagstring = strchr (flagstring, ',') + 1;
-      else
-        break;
+    if (*flagstring == '"') {
+        flagstring++;
     }
 
-  return type;
+    while (flagstring > (char *)1 && strlen (flagstring) > 1) {
+        for (type = 0; type < LT_NUM_LAYERTYPES; type++) {
+            if (strcmp (flagstring, layertype_name[type]) == 0) {
+                break;
+            }
+        }
+
+        if (type == LT_NUM_LAYERTYPES) {
+            flagstring = strchr (flagstring, ',') + 1;
+        } else {
+            break;
+        }
+    }
+
+    return type;
 }
 
 const char *
-layertype_to_string (LayertypeType type)
-{
-  const char *rv = "";
+layertype_to_string (LayertypeType type) {
+    const char *rv = "";
 
-  if (type < LT_NUM_LAYERTYPES)
-    rv = layertype_name[type];
+    if (type < LT_NUM_LAYERTYPES) {
+        rv = layertype_name[type];
+    }
 
-  return rv;
+    return rv;
 }
 
 /*!
@@ -117,31 +117,31 @@ layertype_to_string (LayertypeType type)
  * _not_ used when such flags are already present in the file.
  */
 LayertypeType
-guess_layertype (const char *name, int layer_number, DataType *data)
-{
-  LayertypeType type;
+guess_layertype (const char *name, int layer_number, DataType *data) {
+    LayertypeType type;
 
-  /* First try to find known (partial) matches. */
-  for (type = 0; type < LT_NUM_LAYERTYPES; type++)
-    {
-      if (strcasestr (name, layertype_name[type]))
-        break;
+    /* First try to find known (partial) matches. */
+    for (type = 0; type < LT_NUM_LAYERTYPES; type++) {
+        if (strcasestr (name, layertype_name[type])) {
+            break;
+        }
     }
 
-  /* Nothing found? Then it's likely copper. */
-  if (type == LT_NUM_LAYERTYPES)
-    type = LT_COPPER;
+    /* Nothing found? Then it's likely copper. */
+    if (type == LT_NUM_LAYERTYPES) {
+        type = LT_COPPER;
+    }
 
-  return type;
+    return type;
 }
 
 /* --------------------------------------------------------------------------- */
 
 static const char listlayertypes_syntax[] =
-  N_("ListLayertypes()");
+    N_("ListLayertypes()");
 
 static const char listlayertypes_help[] =
-  N_("List all available layertypes.\n");
+    N_("List all available layertypes.\n");
 
 /* %start-doc actions ListLayertypes
 
@@ -152,25 +152,25 @@ a text editor.
 %end-doc */
 
 static int
-ActionListLayertypes (int argc, char **argv, Coord x, Coord y)
-{
-  LayertypeType type;
+ActionListLayertypes (int argc, char **argv, Coord x, Coord y) {
+    LayertypeType type;
+    Message (N_("Available layer types:\n"));
 
-  Message (N_("Available layer types:\n"));
-  for (type = 0; type < LT_NUM_LAYERTYPES; type++)
-    Message ("    %s (%d)\n", layertype_name[type], type);
+    for (type = 0; type < LT_NUM_LAYERTYPES; type++) {
+        Message ("    %s (%d)\n", layertype_name[type], type);
+    }
 
-  return 0;
+    return 0;
 }
 
 /* --------------------------------------------------------------------------- */
 
 static const char setlayertype_syntax[] =
-  N_("SetLayertype(layer, type)");
+    N_("SetLayertype(layer, type)");
 
 static const char setlayertype_help[] =
-  N_("Sets the type of a layer. Type can be given by name or by number.\n"
-     "For a list of available types, run ListLayertypes().");
+    N_("Sets the type of a layer. Type can be given by name or by number.\n"
+       "For a list of available types, run ListLayertypes().");
 
 /* %start-doc actions SetLayertype
 
@@ -184,46 +184,49 @@ For a list of available types see @pxref{ListLayertypes Action}.
 %end-doc */
 
 int
-ActionSetLayertype (int argc, char **argv, Coord x, Coord y)
-{
-  int index;
-  LayertypeType type;
+ActionSetLayertype (int argc, char **argv, Coord x, Coord y) {
+    int index;
+    LayertypeType type;
 
-  if (argc != 2)
-    AFAIL (setlayertype);
-
-  /* layer array is zero-based, file format counts layers starting at 1. */
-  index = atoi (argv[0]) - 1;
-  if (index < 0 || index >= max_copper_layer + SILK_LAYER)
-    {
-      Message (N_("Layer index %d out of range, must be 0 ... %d\n"),
-               index + 1, max_copper_layer + SILK_LAYER);
-      return 1;
+    if (argc != 2) {
+        AFAIL (setlayertype);
     }
 
-  if (isdigit (argv[1][0]))
-    type = atoi (argv[1]);
-  else
-    type = string_to_layertype (argv[1], NULL);
+    /* layer array is zero-based, file format counts layers starting at 1. */
+    index = atoi (argv[0]) - 1;
 
-  if (type < 0 || type >= LT_NUM_LAYERTYPES)
-    {
-      Message (N_("Invalid layer type (%d) requested. "
-                  "See ListLayertypes() for a list.\n"), type);
-      return 1;
+    if (index < 0 || index >= max_copper_layer + SILK_LAYER) {
+        Message (N_("Layer index %d out of range, must be 0 ... %d\n"),
+                 index + 1, max_copper_layer + SILK_LAYER);
+        return 1;
     }
 
-  PCB->Data->Layer[index].Type = type;
+    if (isdigit (argv[1][0])) {
+        type = atoi (argv[1]);
+    } else {
+        type = string_to_layertype (argv[1], NULL);
+    }
 
-  return 0;
+    if (type < 0 || type >= LT_NUM_LAYERTYPES) {
+        Message (N_("Invalid layer type (%d) requested. "
+                    "See ListLayertypes() for a list.\n"), type);
+        return 1;
+    }
+
+    PCB->Data->Layer[index].Type = type;
+    return 0;
 }
 
 HID_Action layerflags_action_list[] = {
-  {"ListLayertypes", 0, ActionListLayertypes,
-   listlayertypes_help, listlayertypes_syntax}
-  ,
-  {"SetLayertype", 0, ActionSetLayertype,
-   setlayertype_help, setlayertype_syntax}
+    {
+        "ListLayertypes", 0, ActionListLayertypes,
+        listlayertypes_help, listlayertypes_syntax
+    }
+    ,
+    {
+        "SetLayertype", 0, ActionSetLayertype,
+        setlayertype_help, setlayertype_syntax
+    }
 };
 
 REGISTER_ACTIONS (layerflags_action_list)

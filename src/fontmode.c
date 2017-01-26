@@ -71,7 +71,7 @@
 static const char fontedit_syntax[] = "FontEdit()";
 
 static const char fontedit_help[] =
-  "Convert the current font to a PCB for editing.";
+    "Convert the current font to a PCB for editing.";
 
 /* %start-doc actions FontEdit
 
@@ -84,97 +84,98 @@ indicate the space required after the symbol when it is used.
 %end-doc */
 
 static int
-FontEdit (int argc, char **argv, Coord Ux, Coord Uy)
-{
-  FontType *font;
-  SymbolType *symbol;
-  LayerType *lfont, *lorig, *lwidth, *lgrid;
-  int s, l;
+FontEdit (int argc, char **argv, Coord Ux, Coord Uy) {
+    FontType *font;
+    SymbolType *symbol;
+    LayerType *lfont, *lorig, *lwidth, *lgrid;
+    int s, l;
 
-  if (hid_actionl ("New", "Font", 0))
-    return 1;
-
-  Settings.grid_unit = get_unit_struct("mil");
-  Settings.Bloat = PCB->Bloat = 1;
-  Settings.Shrink = PCB->Shrink = 1;
-  Settings.minWid = PCB->minWid = 1;
-  Settings.minSlk = PCB->minSlk = 1;
-
-  MoveLayerToGroup (max_copper_layer + TOP_SILK_LAYER, 0);
-  MoveLayerToGroup (max_copper_layer + BOTTOM_SILK_LAYER, 1);
-
-  while (PCB->Data->LayerN > 4)
-    MoveLayer (4, -1);
-  for (l = 0; l < 4; l++)
-    {
-      MoveLayerToGroup (l, l);
-    }
-  PCB->MaxWidth = CELL_SIZE * 18;
-  PCB->MaxHeight = CELL_SIZE * ((MAX_FONTPOSITION + 15) / 16 + 2);
-  PCB->Grid = MIL_TO_COORD (5);
-  PCB->Data->Layer[0].Name = strdup ("Font");
-  PCB->Data->Layer[1].Name = strdup ("OrigFont");
-  PCB->Data->Layer[2].Name = strdup ("Width");
-  PCB->Data->Layer[3].Name = strdup ("Grid");
-  hid_action ("PCBChanged");
-  hid_action ("LayersChanged");
-
-  lfont = PCB->Data->Layer + 0;
-  lorig = PCB->Data->Layer + 1;
-  lwidth = PCB->Data->Layer + 2;
-  lgrid = PCB->Data->Layer + 3;
-
-  font = &PCB->Font;
-  for (s = 0; s <= MAX_FONTPOSITION; s++)
-    {
-      Coord ox = (s % 16 + 1) * CELL_SIZE;
-      Coord oy = (s / 16 + 1) * CELL_SIZE;
-      Coord w, miny, maxy, maxx = 0;
-
-      symbol = &font->Symbol[s];
-
-      miny = MIL_TO_COORD (5);
-      maxy = font->MaxHeight;
-
-      for (l = 0; l < symbol->LineN; l++)
-	{
-	  CreateDrawnLineOnLayer (lfont,
-				  symbol->Line[l].Point1.X + ox,
-				  symbol->Line[l].Point1.Y + oy,
-				  symbol->Line[l].Point2.X + ox,
-				  symbol->Line[l].Point2.Y + oy,
-				  symbol->Line[l].Thickness,
-				  symbol->Line[l].Thickness, NoFlags ());
-	  CreateDrawnLineOnLayer (lorig, symbol->Line[l].Point1.X + ox,
-				  symbol->Line[l].Point1.Y + oy,
-				  symbol->Line[l].Point2.X + ox,
-				  symbol->Line[l].Point2.Y + oy,
-				  symbol->Line[l].Thickness,
-				  symbol->Line[l].Thickness, NoFlags ());
-	  if (maxx < symbol->Line[l].Point1.X)
-	    maxx = symbol->Line[l].Point1.X;
-	  if (maxx < symbol->Line[l].Point2.X)
-	    maxx = symbol->Line[l].Point2.X;
-	}
-      w = maxx + symbol->Delta + ox;
-      CreateDrawnLineOnLayer (lwidth,
-			      w, miny + oy,
-			      w, maxy + oy, MIL_TO_COORD (1), MIL_TO_COORD (1), NoFlags ());
+    if (hid_actionl ("New", "Font", 0)) {
+        return 1;
     }
 
-  for (l = 0; l < 16; l++)
-    {
-      int x = (l + 1) * CELL_SIZE;
-      CreateDrawnLineOnLayer (lgrid, x, 0, x, PCB->MaxHeight, MIL_TO_COORD (1),
-                              MIL_TO_COORD (1), NoFlags ());
+    Settings.grid_unit = get_unit_struct("mil");
+    Settings.Bloat = PCB->Bloat = 1;
+    Settings.Shrink = PCB->Shrink = 1;
+    Settings.minWid = PCB->minWid = 1;
+    Settings.minSlk = PCB->minSlk = 1;
+    MoveLayerToGroup (max_copper_layer + TOP_SILK_LAYER, 0);
+    MoveLayerToGroup (max_copper_layer + BOTTOM_SILK_LAYER, 1);
+
+    while (PCB->Data->LayerN > 4) {
+        MoveLayer (4, -1);
     }
-  for (l = 0; l <= MAX_FONTPOSITION / 16 + 1; l++)
-    {
-      int y = (l + 1) * CELL_SIZE;
-      CreateDrawnLineOnLayer (lgrid, 0, y, PCB->MaxWidth, y, MIL_TO_COORD (1),
-                              MIL_TO_COORD (1), NoFlags ());
+
+    for (l = 0; l < 4; l++) {
+        MoveLayerToGroup (l, l);
     }
-  return 0;
+
+    PCB->MaxWidth = CELL_SIZE * 18;
+    PCB->MaxHeight = CELL_SIZE * ((MAX_FONTPOSITION + 15) / 16 + 2);
+    PCB->Grid = MIL_TO_COORD (5);
+    PCB->Data->Layer[0].Name = strdup ("Font");
+    PCB->Data->Layer[1].Name = strdup ("OrigFont");
+    PCB->Data->Layer[2].Name = strdup ("Width");
+    PCB->Data->Layer[3].Name = strdup ("Grid");
+    hid_action ("PCBChanged");
+    hid_action ("LayersChanged");
+    lfont = PCB->Data->Layer + 0;
+    lorig = PCB->Data->Layer + 1;
+    lwidth = PCB->Data->Layer + 2;
+    lgrid = PCB->Data->Layer + 3;
+    font = &PCB->Font;
+
+    for (s = 0; s <= MAX_FONTPOSITION; s++) {
+        Coord ox = (s % 16 + 1) * CELL_SIZE;
+        Coord oy = (s / 16 + 1) * CELL_SIZE;
+        Coord w, miny, maxy, maxx = 0;
+        symbol = &font->Symbol[s];
+        miny = MIL_TO_COORD (5);
+        maxy = font->MaxHeight;
+
+        for (l = 0; l < symbol->LineN; l++) {
+            CreateDrawnLineOnLayer (lfont,
+                                    symbol->Line[l].Point1.X + ox,
+                                    symbol->Line[l].Point1.Y + oy,
+                                    symbol->Line[l].Point2.X + ox,
+                                    symbol->Line[l].Point2.Y + oy,
+                                    symbol->Line[l].Thickness,
+                                    symbol->Line[l].Thickness, NoFlags ());
+            CreateDrawnLineOnLayer (lorig, symbol->Line[l].Point1.X + ox,
+                                    symbol->Line[l].Point1.Y + oy,
+                                    symbol->Line[l].Point2.X + ox,
+                                    symbol->Line[l].Point2.Y + oy,
+                                    symbol->Line[l].Thickness,
+                                    symbol->Line[l].Thickness, NoFlags ());
+
+            if (maxx < symbol->Line[l].Point1.X) {
+                maxx = symbol->Line[l].Point1.X;
+            }
+
+            if (maxx < symbol->Line[l].Point2.X) {
+                maxx = symbol->Line[l].Point2.X;
+            }
+        }
+
+        w = maxx + symbol->Delta + ox;
+        CreateDrawnLineOnLayer (lwidth,
+                                w, miny + oy,
+                                w, maxy + oy, MIL_TO_COORD (1), MIL_TO_COORD (1), NoFlags ());
+    }
+
+    for (l = 0; l < 16; l++) {
+        int x = (l + 1) * CELL_SIZE;
+        CreateDrawnLineOnLayer (lgrid, x, 0, x, PCB->MaxHeight, MIL_TO_COORD (1),
+                                MIL_TO_COORD (1), NoFlags ());
+    }
+
+    for (l = 0; l <= MAX_FONTPOSITION / 16 + 1; l++) {
+        int y = (l + 1) * CELL_SIZE;
+        CreateDrawnLineOnLayer (lgrid, 0, y, PCB->MaxWidth, y, MIL_TO_COORD (1),
+                                MIL_TO_COORD (1), NoFlags ());
+    }
+
+    return 0;
 }
 
 static const char fontsave_syntax[] = "FontSave()";
@@ -191,79 +192,75 @@ use in other PCB layouts.
 %end-doc */
 
 static int
-FontSave (int argc, char **argv, Coord Ux, Coord Uy)
-{
-  FontType *font;
-  SymbolType *symbol;
-  int i;
-  GList *ii;
-  LayerType *lfont, *lwidth;
+FontSave (int argc, char **argv, Coord Ux, Coord Uy) {
+    FontType *font;
+    SymbolType *symbol;
+    int i;
+    GList *ii;
+    LayerType *lfont, *lwidth;
+    font = &PCB->Font;
+    lfont = PCB->Data->Layer + 0;
+    lwidth = PCB->Data->Layer + 2;
 
-  font = &PCB->Font;
-  lfont = PCB->Data->Layer + 0;
-  lwidth = PCB->Data->Layer + 2;
-
-  for (i = 0; i <= MAX_FONTPOSITION; i++)
-    {
-      font->Symbol[i].LineN = 0;
-      font->Symbol[i].Valid = 0;
-      font->Symbol[i].Width = 0;
+    for (i = 0; i <= MAX_FONTPOSITION; i++) {
+        font->Symbol[i].LineN = 0;
+        font->Symbol[i].Valid = 0;
+        font->Symbol[i].Width = 0;
     }
 
-  for (ii = lfont->Line; ii != NULL; ii = g_list_next (ii))
-    {
-      LineType *l = ii->data;
-      int x1 = l->Point1.X;
-      int y1 = l->Point1.Y;
-      int x2 = l->Point2.X;
-      int y2 = l->Point2.Y;
-      int ox, oy, s;
+    for (ii = lfont->Line; ii != NULL; ii = g_list_next (ii)) {
+        LineType *l = ii->data;
+        int x1 = l->Point1.X;
+        int y1 = l->Point1.Y;
+        int x2 = l->Point2.X;
+        int y2 = l->Point2.Y;
+        int ox, oy, s;
+        s = XYtoSym (x1, y1);
+        ox = (s % 16 + 1) * CELL_SIZE;
+        oy = (s / 16 + 1) * CELL_SIZE;
+        symbol = &PCB->Font.Symbol[s];
+        x1 -= ox;
+        y1 -= oy;
+        x2 -= ox;
+        y2 -= oy;
 
-      s = XYtoSym (x1, y1);
-      ox = (s % 16 + 1) * CELL_SIZE;
-      oy = (s / 16 + 1) * CELL_SIZE;
-      symbol = &PCB->Font.Symbol[s];
+        if (symbol->Width < x1) {
+            symbol->Width = x1;
+        }
 
-      x1 -= ox;
-      y1 -= oy;
-      x2 -= ox;
-      y2 -= oy;
+        if (symbol->Width < x2) {
+            symbol->Width = x2;
+        }
 
-      if (symbol->Width < x1)
-	symbol->Width = x1;
-      if (symbol->Width < x2)
-	symbol->Width = x2;
-      symbol->Valid = 1;
-
-      CreateNewLineInSymbol (symbol, x1, y1, x2, y2, l->Thickness);
+        symbol->Valid = 1;
+        CreateNewLineInSymbol (symbol, x1, y1, x2, y2, l->Thickness);
     }
 
-  for (ii = lwidth->Line; ii != NULL; ii = g_list_next (ii))
-    {
-      LineType *l = ii->data;
-      Coord x1 = l->Point1.X;
-      Coord y1 = l->Point1.Y;
-      Coord ox, s;
-
-      s = XYtoSym (x1, y1);
-      ox = (s % 16 + 1) * CELL_SIZE;
-      symbol = &PCB->Font.Symbol[s];
-
-      x1 -= ox;
-
-      symbol->Delta = x1 - symbol->Width;
+    for (ii = lwidth->Line; ii != NULL; ii = g_list_next (ii)) {
+        LineType *l = ii->data;
+        Coord x1 = l->Point1.X;
+        Coord y1 = l->Point1.Y;
+        Coord ox, s;
+        s = XYtoSym (x1, y1);
+        ox = (s % 16 + 1) * CELL_SIZE;
+        symbol = &PCB->Font.Symbol[s];
+        x1 -= ox;
+        symbol->Delta = x1 - symbol->Width;
     }
 
-  SetFontInfo (font);
-  
-  return 0;
+    SetFontInfo (font);
+    return 0;
 }
 
 HID_Action fontmode_action_list[] = {
-  {"FontEdit", 0, FontEdit,
-   fontedit_help, fontedit_syntax},
-  {"FontSave", 0, FontSave,
-   fontsave_help, fontsave_syntax}
+    {
+        "FontEdit", 0, FontEdit,
+        fontedit_help, fontedit_syntax
+    },
+    {
+        "FontSave", 0, FontSave,
+        fontsave_help, fontsave_syntax
+    }
 };
 
 REGISTER_ACTIONS (fontmode_action_list)

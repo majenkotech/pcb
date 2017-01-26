@@ -290,6 +290,14 @@ extern int mem_any_set (unsigned char *, int);
        __iter = __next, __next = g_list_next (__iter), n++) {       \
     ArcType *arc = __iter->data;
 
+#define ELEMENTPOLY_LOOP(element) do {                               \
+  GList *__iter, *__next;                                           \
+  Cardinal n = 0;                                                   \
+  for (__iter = (element)->Polygon, __next = g_list_next (__iter);      \
+       __iter != NULL;                                              \
+       __iter = __next, __next = g_list_next (__iter), n++) {       \
+    PolygonType *polygon = __iter->data;
+
 #define LINE_LOOP(layer) do {                                       \
   GList *__iter, *__next;                                           \
   Cardinal n = 0;                                                   \

@@ -51,8 +51,8 @@ typedef unsigned int leaky_idx_t;
  * potentially causing slower memory access.
  */
 typedef union {
-  leaky_idx_t idx;
-  void *ptr;
+    leaky_idx_t idx;
+    void *ptr;
 } leaky_admin_t;
 
 static void         **free_list = NULL;
@@ -63,76 +63,67 @@ static leaky_idx_t  free_size = 0;
  * \brief Allocate memory, remember the pointer and free it after exit
  * from the application.
  */
-void *leaky_malloc (size_t size)
-{
-  void *new_memory = malloc(size + sizeof(leaky_admin_t));
-
-  free_list = (void **)realloc (free_list, (free_size + 1) * sizeof(void *));
-  free_list[free_size] = new_memory;
-  *(leaky_idx_t *)new_memory = free_size;
-
-  free_size++;
-  return new_memory + sizeof(leaky_admin_t);
+void *leaky_malloc (size_t size) {
+    void *new_memory = malloc(size + sizeof(leaky_admin_t));
+    free_list = (void **)realloc (free_list, (free_size + 1) * sizeof(void *));
+    free_list[free_size] = new_memory;
+    *(leaky_idx_t *)new_memory = free_size;
+    free_size++;
+    return new_memory + sizeof(leaky_admin_t);
 }
 
 /*!
  * \brief Same as leaky_malloc but this one wraps calloc().
  */
-void *leaky_calloc (size_t nmemb, size_t size)
-{
-  size_t size_ = size * nmemb;
-  void *new_memory = leaky_malloc (size_);
-
-  memset (new_memory, 0, size_);
-  return new_memory;
+void *leaky_calloc (size_t nmemb, size_t size) {
+    size_t size_ = size * nmemb;
+    void *new_memory = leaky_malloc (size_);
+    memset (new_memory, 0, size_);
+    return new_memory;
 }
 
 /*!
  * \brief Reallocate memory, remember the new pointer and free it after
  * exit from the application.
  */
-void *leaky_realloc (void* old_memory, size_t size)
-{
-  void *new_memory;
-  leaky_idx_t i;
+void *leaky_realloc (void* old_memory, size_t size) {
+    void *new_memory;
+    leaky_idx_t i;
 
-  if (old_memory == NULL)
-    return leaky_malloc (size);
+    if (old_memory == NULL) {
+        return leaky_malloc (size);
+    }
 
-  old_memory -= sizeof(leaky_admin_t);
-
-  i = *(leaky_idx_t *)old_memory;
-
-  new_memory = realloc (old_memory, size + sizeof(leaky_admin_t));
-  free_list[i] = new_memory;
-
-  return new_memory + sizeof(leaky_admin_t);
+    old_memory -= sizeof(leaky_admin_t);
+    i = *(leaky_idx_t *)old_memory;
+    new_memory = realloc (old_memory, size + sizeof(leaky_admin_t));
+    free_list[i] = new_memory;
+    return new_memory + sizeof(leaky_admin_t);
 }
 
 /*!
  * \brief strdup() using leaky_malloc().
  */
 char *
-leaky_strdup (const char *src)
-{
-  int len = strlen (src)+1;
-  char *res = leaky_malloc (len);
-  memcpy (res, src, len);
-  return res;
+leaky_strdup (const char *src) {
+    int len = strlen (src) + 1;
+    char *res = leaky_malloc (len);
+    memcpy (res, src, len);
+    return res;
 }
 
 /*!
  * \brief Free all allocations.
  */
-void leaky_uninit (void)
-{
-  int i;
+void leaky_uninit (void) {
+    int i;
 
-  for (i = 0; i < free_size; i++)
-    free (free_list[i]);
+    for (i = 0; i < free_size; i++) {
+        free (free_list[i]);
+    }
 
-  free (free_list);
-  free_size = 0;
+    free (free_list);
+    free_size = 0;
 }
 
 /*!
@@ -140,7 +131,6 @@ void leaky_uninit (void)
  *
  * Can be avoided if leaky_uninit() is called by hand.
  */
-void leaky_init (void)
-{
-  atexit(leaky_uninit);
+void leaky_init (void) {
+    atexit(leaky_uninit);
 }
